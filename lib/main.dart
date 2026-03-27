@@ -70,7 +70,8 @@ class MainPage extends StatelessWidget {
               Stack(
                 children: [
                   NeuBox(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                    borderRadius: 12,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -79,48 +80,50 @@ class MainPage extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
+                            color: const Color(0xFF6C757D),
                           ),
                         ),
+                        const SizedBox(height: 4),
                         Text(
                           '02:15:42',
                           style: GoogleFonts.outfit(
-                            fontSize: 56,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 68,
+                            fontWeight: FontWeight.w800,
                             color: darkColor,
-                            height: 1.1,
+                            height: 1.0,
                             letterSpacing: -2,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 16),
                         Row(
                           children: [
-                            const Icon(Icons.location_on_outlined, color: Color(0xFF007BFF), size: 20),
-                            const SizedBox(width: 4),
+                            Image.asset('icon/main_icon/Location.png', width: 24, height: 24),
+                            const SizedBox(width: 8),
                             Text(
                               'London, United Kingdom',
-                              style: TextStyle(
-                                fontSize: 13,
+                              style: GoogleFonts.epilogue(
+                                fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 color: darkColor,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 32),
                         SizedBox(
                           width: double.infinity,
                           child: NeuButton(
                             onTap: () {},
                             color: const Color(0xFF007BFF),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            borderRadius: 12,
                             child: const Center(
                               child: Text(
                                 'SET REMINDER',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,
-                                  fontSize: 14,
+                                  fontSize: 16,
                                 ),
                               ),
                             ),
@@ -131,18 +134,18 @@ class MainPage extends StatelessWidget {
                   ),
                   Positioned(
                     top: 0,
-                    right: 4, // Inside the border offset
+                    right: 0,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: const BoxDecoration(
                         color: Color(0xFF007BFF),
                         border: Border(
-                          bottom: BorderSide(color: darkColor, width: 2.5),
-                          left: BorderSide(color: darkColor, width: 2.5),
+                          bottom: BorderSide(color: darkColor, width: 3.5),
+                          left: BorderSide(color: darkColor, width: 3.5),
                         ),
                         borderRadius: BorderRadius.only(
-                          topRight: Radius.circular(8),
-                          bottomLeft: Radius.circular(8),
+                          topRight: Radius.circular(12),
+                          bottomLeft: Radius.circular(12),
                         ),
                       ),
                       child: const Text(
@@ -150,7 +153,7 @@ class MainPage extends StatelessWidget {
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
-                          fontSize: 10,
+                          fontSize: 12,
                         ),
                       ),
                     ),
@@ -279,11 +282,11 @@ class NeuBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: const Color(0xFF1A1F2B), width: 2.5),
-        boxShadow: const [
+        border: Border.all(color: const Color(0xFF1A1F2B), width: 3.5),
+        boxShadow: [
           BoxShadow(
-            color: Color(0xFF1A1F2B),
-            offset: Offset(4, 4),
+            color: const Color(0xFF1A1F2B),
+            offset: Offset(borderRadius > 8 ? 6 : 4, borderRadius > 8 ? 6 : 4),
             blurRadius: 0,
           )
         ],
