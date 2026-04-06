@@ -1,13 +1,79 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class TasksPage extends StatelessWidget {
+class TodoTask {
+  final String id;
+  final String title;
+  final String subtitle;
+  final bool isUrgent;
+  bool isDone;
+  final Color? leftDeco;
+
+  TodoTask({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    this.isUrgent = false,
+    this.isDone = false,
+    this.leftDeco,
+  });
+}
+
+class TasksPage extends StatefulWidget {
   const TasksPage({super.key});
+
+  @override
+  State<TasksPage> createState() => _TasksPageState();
+}
+
+class _TasksPageState extends State<TasksPage> {
+  final List<TodoTask> _tasks = [
+    TodoTask(
+      id: '1',
+      title: 'Design Review\nPresentation',
+      subtitle: '9:00 AM - 10:30 AM',
+      isUrgent: true,
+    ),
+    TodoTask(
+      id: '2',
+      title: 'Submit Q3 Reports',
+      subtitle: 'DUE TODAY',
+      isUrgent: true,
+    ),
+    TodoTask(
+      id: '3',
+      title: 'Pick up groceries',
+      subtitle: 'PERSONAL',
+      leftDeco: const Color(0xFF007BFF),
+    ),
+    TodoTask(
+      id: '4',
+      title: 'Call the plumber',
+      subtitle: 'HOME MAINTENANCE',
+    ),
+    TodoTask(
+      id: '5',
+      title: 'Morning Workout',
+      subtitle: 'HEALTH',
+      isDone: true,
+    ),
+  ];
+
+  void _toggleTaskStatus(String id) {
+    setState(() {
+      final task = _tasks.firstWhere((t) => t.id == id);
+      task.isDone = !task.isDone;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     const darkColor = Color(0xFF1A1F2B);
     
+    final urgentTasks = _tasks.where((t) => t.isUrgent && !t.isDone).toList();
+    final pendingTasks = _tasks.where((t) => !t.isUrgent && !t.isDone).toList();
+    final doneTasks = _tasks.where((t) => t.isDone).toList();
+
     return Scaffold(
       backgroundColor: const Color(0xFFE5F1FF), // Light blue background
       body: SafeArea(
@@ -62,14 +128,14 @@ class TasksPage extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _TabItem(title: 'ALL (12)', isActive: true, color: const Color(0xFF007BFF)),
+                    child: _TabItem(title: 'ALL (${_tasks.length})', isActive: true, color: const Color(0xFF007BFF)),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
+                  const Expanded(
                     child: _TabItem(title: 'WORK', isActive: false),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
+                  const Expanded(
                     child: _TabItem(title: 'PERSONAL', isActive: false),
                   ),
                 ],
@@ -77,56 +143,67 @@ class TasksPage extends StatelessWidget {
               const SizedBox(height: 32),
 
               // URGENT SECTION
-              _CategoryBadge(text: 'URGENT', color: const Color(0xFFFF649C)), // Pink
-              const SizedBox(height: 12),
-              const _TaskItem(
-                title: 'Design Review\nPresentation',
-                subtitle: '9:00 AM - 10:30 AM',
-                iconBgColor: Color(0xFFFFBA24), // Yellow
-                iconIcon: Icons.priority_high,
-              ),
-              const SizedBox(height: 12),
-              const _TaskItem(
-                title: 'Submit Q3 Reports',
-                subtitle: 'DUE TODAY',
-                iconBgColor: Color(0xFFFFBA24),
-                iconIcon: Icons.priority_high,
-              ),
-
-              const SizedBox(height: 32),
+              if (urgentTasks.isNotEmpty) ...[
+                const _CategoryBadge(text: 'URGENT', color: Color(0xFFFF649C)), // Pink
+                const SizedBox(height: 12),
+                ...urgentTasks.map((task) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _TaskItem(
+                    title: task.title,
+                    subtitle: task.subtitle,
+                    iconBgColor: const Color(0xFFFFBA24), // Yellow
+                    iconIcon: Icons.priority_high,
+                    onToggle: () => _toggleTaskStatus(task.id),
+                  ),
+                )),
+                const SizedBox(height: 20),
+              ],
 
               // PENDING SECTION
-              _CategoryBadge(text: 'PENDING', color: const Color(0xFF00FF7F)), // Green
+              const _CategoryBadge(text: 'PENDING', color: Color(0xFF00FF7F)), // Green
               const SizedBox(height: 12),
-              const _TaskItem(
-                title: 'Pick up groceries',
-                subtitle: 'PERSONAL',
-                iconBgColor: Colors.white,
-                isCheckbox: true,
-                leftDeco: Color(0xFF007BFF), // Blue border left
-              ),
-              const SizedBox(height: 12),
-              const _TaskItem(
-                title: 'Call the plumber',
-                subtitle: 'HOME MAINTENANCE',
-                iconBgColor: Colors.white,
-                isCheckbox: true,
-              ),
+              if (pendingTasks.isEmpty)
+                Text(
+                  'No pending tasks',
+                  style: GoogleFonts.epilogue(color: Colors.grey, fontWeight: FontWeight.bold),
+                )
+              else
+                ...pendingTasks.map((task) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _TaskItem(
+                    title: task.title,
+                    subtitle: task.subtitle,
+                    iconBgColor: Colors.white,
+                    isCheckbox: true,
+                    leftDeco: task.leftDeco,
+                    onToggle: () => _toggleTaskStatus(task.id),
+                  ),
+                )),
 
               const SizedBox(height: 32),
 
               // DONE SECTION
-              _CategoryBadge(text: 'DONE', color: const Color(0xFFD3D8E0)), // Greyish
+              const _CategoryBadge(text: 'DONE', color: Color(0xFFD3D8E0)), // Greyish
               const SizedBox(height: 12),
-              const _TaskItem(
-                title: 'Morning Workout',
-                subtitle: 'HEALTH',
-                iconBgColor: Color(0xFF69B4FF),
-                iconIcon: Icons.check,
-                isDone: true,
-                isCheckbox: true,
-                checked: true,
-              ),
+              if (doneTasks.isEmpty)
+                Text(
+                  'No completed tasks',
+                  style: GoogleFonts.epilogue(color: Colors.grey, fontWeight: FontWeight.bold),
+                )
+              else
+                ...doneTasks.map((task) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _TaskItem(
+                    title: task.title,
+                    subtitle: task.subtitle,
+                    iconBgColor: const Color(0xFF69B4FF),
+                    iconIcon: Icons.check,
+                    isDone: true,
+                    isCheckbox: true,
+                    checked: true,
+                    onToggle: () => _toggleTaskStatus(task.id),
+                  ),
+                )),
               
               const SizedBox(height: 120), // Padding for nav bar
             ],
@@ -203,11 +280,13 @@ class _TaskItem extends StatelessWidget {
   final bool checked;
   final bool isDone;
   final Color? leftDeco;
+  final VoidCallback onToggle;
 
   const _TaskItem({
     required this.title,
     required this.subtitle,
     required this.iconBgColor,
+    required this.onToggle,
     this.iconIcon,
     this.isCheckbox = false,
     this.checked = false,
@@ -218,82 +297,86 @@ class _TaskItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const darkColor = Color(0xFF1A1F2B);
-    return Stack(
-      children: [
-        _NeuBoxCustom(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          borderRadius: 0,
-          borderWidth: 3,
-          offset: const Offset(5, 5),
-          backgroundColor: isDone ? const Color(0xFFF3F4F6) : Colors.white,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Icon or Checkbox
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: isCheckbox ? (checked ? const Color(0xFF69B4FF) : Colors.white) : iconBgColor,
-                  border: Border.all(color: darkColor, width: 2),
+    return GestureDetector(
+      onTap: onToggle,
+      child: Stack(
+        children: [
+          _NeuBoxCustom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            borderRadius: 0,
+            borderWidth: 3,
+            offset: const Offset(5, 5),
+            backgroundColor: isDone ? const Color(0xFFF3F4F6) : Colors.white,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Icon or Checkbox
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: isCheckbox ? (checked ? const Color(0xFF69B4FF) : Colors.white) : iconBgColor,
+                    border: Border.all(color: darkColor, width: 2),
+                  ),
+                  child: isCheckbox
+                      ? (checked ? const Icon(Icons.check, size: 16, color: Colors.white) : null)
+                      : Icon(iconIcon, size: 16, color: darkColor),
                 ),
-                child: isCheckbox
-                    ? (checked ? const Icon(Icons.check, size: 16, color: Colors.white) : null)
-                    : Icon(iconIcon, size: 16, color: darkColor),
-              ),
-              const SizedBox(width: 16),
-              // Text Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.epilogue(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: isDone ? const Color(0xFF9CA3AF) : darkColor,
-                        decoration: isDone ? TextDecoration.lineThrough : null,
+                const SizedBox(width: 16),
+                // Text Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.epilogue(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: isDone ? const Color(0xFF9CA3AF) : darkColor,
+                          decoration: isDone ? TextDecoration.lineThrough : null,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.epilogue(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF6C757D),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.epilogue(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF6C757D),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              // Drag indicator
-              const Icon(Icons.drag_indicator, color: Color(0xFF9CA3AF)),
-            ],
+                // Drag indicator
+                const Icon(Icons.drag_indicator, color: Color(0xFF9CA3AF)),
+              ],
+            ),
           ),
-        ),
-        if (leftDeco != null)
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 5, // Account for shadow
-            width: 8,
-            child: Container(
-              decoration: BoxDecoration(
-                color: leftDeco,
-                border: const Border(
-                  top: BorderSide(color: darkColor, width: 3),
-                  bottom: BorderSide(color: darkColor, width: 3),
-                  left: BorderSide(color: darkColor, width: 3),
+          if (leftDeco != null)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 5, // Account for shadow
+              width: 8,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: leftDeco,
+                  border: const Border(
+                    top: BorderSide(color: darkColor, width: 3),
+                    bottom: BorderSide(color: darkColor, width: 3),
+                    left: BorderSide(color: darkColor, width: 3),
+                  ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
+
 
 // Internal reusable neu box component for this page
 class _NeuBoxCustom extends StatelessWidget {

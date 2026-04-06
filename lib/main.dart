@@ -4,8 +4,11 @@ import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 import 'tasks_page.dart';
+import 'habits_page.dart';
 
 void main() {
   runApp(const MuslimDailyApp());
@@ -53,7 +56,7 @@ class _MainPageState extends State<MainPage> {
         children: [
           const _HomeView(),
           const TasksPage(),
-          const Center(child: Text('Habits')),
+          const HabitsPage(),
           const Center(child: Text('Profile')),
         ],
       ),
@@ -76,6 +79,9 @@ class _HomeViewState extends State<_HomeView> {
   Map<String, String>? _prayerTimes;
   String _nextPrayerName = 'Loading...';
   String _countdown = '00:00:00';
+  String _locationName = 'Searching location...';
+  bool _isLoading = false;
+
   Timer? _timer;
 
   @override
@@ -92,9 +98,17 @@ class _HomeViewState extends State<_HomeView> {
   }
 
   Future<void> _fetchPrayerTimes() async {
+    setState(() {
+      _isLoading = true;
+      _locationName = 'Locating...';
+    });
     try {
+      Position position = await _getGeoLocationPosition();
+      await _getAddressFromLatLong(position);
+
       final response = await http.get(Uri.parse(
-          'https://api.aladhan.com/v1/timingsByCity?city=Jakarta&country=Indonesia&method=11'));
+          'https://api.aladhan.com/v1/timings?latitude=${position.latitude}&longitude=${position.longitude}&method=11'));
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final timings = data['data']['timings'];
@@ -106,11 +120,91 @@ class _HomeViewState extends State<_HomeView> {
             'Maghrib': timings['Maghrib'],
             'Isha': timings['Isha'],
           };
+          _isLoading = false;
         });
         _updateCountdown(null);
       }
     } catch (e) {
       debugPrint('Failed to load prayer times: $e');
+      // Fallback if location fails
+      _fetchPrayerTimesByCity('Jakarta');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchPrayerTimesByCity(String city) async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+       final response = await http.get(Uri.parse(
+          'https://api.aladhan.com/v1/timingsByCity?city=$city&country=Indonesia&method=11'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final timings = data['data']['timings'];
+        setState(() {
+          _locationName = '$city, Indonesia';
+          _prayerTimes = {
+            'Fajr': timings['Fajr'],
+            'Dhuhr': timings['Dhuhr'],
+            'Asr': timings['Asr'],
+            'Maghrib': timings['Maghrib'],
+            'Isha': timings['Isha'],
+          };
+          _isLoading = false;
+        });
+        _updateCountdown(null);
+      }
+    } catch (e) {
+       debugPrint('Failed to load fallback prayer times: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<Position> _getGeoLocationPosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      await Geolocator.openLocationSettings();
+      return Future.error('Location services are disabled.');
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return Future.error('Location permissions are denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return Future.error('Location permissions are permanently denied, we cannot request permissions.');
+    }
+
+    return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+  }
+
+  Future<void> _getAddressFromLatLong(Position position) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      Placemark place = placemarks[0];
+      setState(() {
+        _locationName = "${place.subAdministrativeArea}, ${place.country}";
+      });
+    } catch (e) {
+      debugPrint(e.toString());
     }
   }
 
@@ -246,9 +340,8 @@ class _HomeViewState extends State<_HomeView> {
                             errorBuilder: (_, _, _) => const Icon(Icons.location_on_outlined, color: Color(0xFF007BFF), size: 24),
                           ),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Jakarta, Indonesia',
+                          Expanded(child: Text(
+                              _locationName,
                               style: GoogleFonts.epilogue(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
@@ -323,7 +416,8 @@ class _HomeViewState extends State<_HomeView> {
             ),
             const SizedBox(height: 16),
 
-            if (_prayerTimes == null)
+            if (_prayerTimes == null || _isLoading)
+
               const Padding(
                 padding: EdgeInsets.all(20),
                 child: Center(child: CircularProgressIndicator()),
@@ -383,14 +477,34 @@ class _HomeViewState extends State<_HomeView> {
             const SizedBox(height: 30),
 
             // --- YOUR LOCATION ---
-            Text(
-              'YOUR LOCATION',
-              style: GoogleFonts.epilogue(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: darkColor,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'YOUR LOCATION',
+                  style: GoogleFonts.epilogue(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: darkColor,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _isLoading ? null : _fetchPrayerTimes,
+                  icon: _isLoading 
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location, size: 16),
+                  label: Text(
+                    _isLoading ? 'FETCHING...' : 'REFRESH LOCATION',
+                    style: GoogleFonts.epilogue(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF007BFF),
+                    ),
+                  ),
+                ),
+              ],
             ),
+
             const SizedBox(height: 16),
             NeuBox(
               padding: EdgeInsets.zero,
@@ -410,9 +524,9 @@ class _HomeViewState extends State<_HomeView> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       color: Colors.white,
-                      child: const Text(
-                        'LONDON, UK',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                      child: Text(
+                        _locationName.toUpperCase(),
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                       ),
                     ),
                   ),
