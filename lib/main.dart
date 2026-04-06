@@ -9,6 +9,7 @@ import 'package:geocoding/geocoding.dart';
 
 import 'tasks_page.dart';
 import 'habits_page.dart';
+import 'profile_page.dart';
 
 void main() {
   runApp(const MuslimDailyApp());
@@ -57,7 +58,7 @@ class _MainPageState extends State<MainPage> {
           const _HomeView(),
           const TasksPage(),
           const HabitsPage(),
-          const Center(child: Text('Profile')),
+          const ProfilePage(),
         ],
       ),
       bottomNavigationBar: CustomBottomNav(

@@ -9,6 +9,11 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This app needs access to location to show and notify local prayer times.</string>
 
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your photo library to select a profile picture.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to your camera to take a profile picture.</string>
+
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
