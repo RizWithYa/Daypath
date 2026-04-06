@@ -87,7 +87,9 @@ class _HomeViewState extends State<_HomeView> {
   @override
   void initState() {
     super.initState();
-    _fetchPrayerTimes();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchPrayerTimes();
+    });
     _timer = Timer.periodic(const Duration(seconds: 1), _updateCountdown);
   }
 
@@ -177,12 +179,52 @@ class _HomeViewState extends State<_HomeView> {
 
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Layanan Lokasi Mati', style: TextStyle(fontWeight: FontWeight.bold)),
+            content: const Text('Harap aktifkan GPS/layanan lokasi untuk mendeteksi waktu sholat yang akurat di daerah Anda.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
       await Geolocator.openLocationSettings();
       return Future.error('Location services are disabled.');
     }
 
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
+      if (mounted) {
+        bool? allow = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Izin Lokasi Dibutuhkan', style: TextStyle(fontWeight: FontWeight.bold)),
+            content: const Text('Aplikasi ini membutuhkan akses lokasi Anda untuk dapat menampilkan jadwal sholat harian yang akurat sesuai dengan kota Anda.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: const Color(0xFF007BFF)),
+                child: const Text('Lanjutkan'),
+              ),
+            ],
+          ),
+        );
+
+        if (allow != true) {
+          return Future.error('Location permissions are denied by user in dialog');
+        }
+      }
+
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         return Future.error('Location permissions are denied');
@@ -190,10 +232,25 @@ class _HomeViewState extends State<_HomeView> {
     }
 
     if (permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Izin Lokasi Ditolak Permanen', style: TextStyle(fontWeight: FontWeight.bold)),
+            content: const Text('Anda telah menolak izin lokasi secara permanen. Silakan izinkan akses lokasi melalui Pengaturan perangkat Anda.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
       return Future.error('Location permissions are permanently denied, we cannot request permissions.');
     }
 
-    return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    return await Geolocator.getCurrentPosition();
   }
 
   Future<void> _getAddressFromLatLong(Position position) async {

@@ -1,5 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+
+class Habit {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  bool isCompleted;
+
+  Habit({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    this.isCompleted = false,
+  });
+}
 
 class HabitsPage extends StatefulWidget {
   const HabitsPage({super.key});
@@ -9,11 +26,53 @@ class HabitsPage extends StatefulWidget {
 }
 
 class _HabitsPageState extends State<HabitsPage> {
+  final List<Habit> _habits = [
+    Habit(
+      title: 'TILAWAH QURAN',
+      subtitle: 'Read at least 1 Juz/Page',
+      icon: Icons.menu_book,
+      color: const Color(0xFFE4C1F9),
+    ),
+    Habit(
+      title: 'MORNING DHIKR',
+      subtitle: 'Start the day with remembrance',
+      icon: Icons.wb_sunny_outlined,
+      color: const Color(0xFFFFD19A),
+    ),
+    Habit(
+      title: 'SUNNAH PRAYER',
+      subtitle: 'Duha, Tahajjud, or Rawatib',
+      icon: Icons.mosque_outlined,
+      color: const Color(0xFFB5D8FF),
+    ),
+    Habit(
+      title: 'GIVE CHARITY',
+      subtitle: 'Small act of kindness counts',
+      icon: Icons.favorite_border,
+      color: const Color(0xFFFFB5D8),
+    ),
+  ];
+
+  double get _completionPercentage {
+    if (_habits.isEmpty) return 0;
+    int completedCount = _habits.where((h) => h.isCompleted).length;
+    return (completedCount / _habits.length) * 100;
+  }
+
+  void _toggleHabit(int index) {
+    setState(() {
+      _habits[index].isCompleted = !_habits[index].isCompleted;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     const darkColor = Color(0xFF1A1F2B);
+    final now = DateTime.now();
+    final monthName = DateFormat('MMMM yyyy').format(now).toUpperCase();
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF1E4), // Light cream background
+      backgroundColor: const Color(0xFFFFF1E4),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -26,11 +85,11 @@ class _HabitsPageState extends State<HabitsPage> {
                 children: [
                   _NeuBoxCustom(
                     padding: const EdgeInsets.all(8),
-                    backgroundColor: const Color(0xFF007BFF), // Blue icon bg
+                    backgroundColor: const Color(0xFF007BFF),
                     child: const Icon(Icons.calendar_month, color: Colors.white, size: 28),
                   ),
                   Text(
-                    'HABIT.TRACK',
+                    'DAILY.IBADAH',
                     style: GoogleFonts.epilogue(
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
@@ -40,7 +99,7 @@ class _HabitsPageState extends State<HabitsPage> {
                   ),
                   _NeuBoxCustom(
                     padding: const EdgeInsets.all(8),
-                    backgroundColor: const Color(0xFFFFBA24), // Yellow
+                    backgroundColor: const Color(0xFFFFBA24),
                     child: const Icon(Icons.person_outline, color: darkColor, size: 28),
                   ),
                 ],
@@ -57,13 +116,13 @@ class _HabitsPageState extends State<HabitsPage> {
                       children: [
                         _NeuBoxCustom(
                           padding: const EdgeInsets.all(4),
-                          backgroundColor: const Color(0xFFFF649C), // Pink
+                          backgroundColor: const Color(0xFFFF649C),
                           borderWidth: 2,
                           offset: const Offset(3, 3),
                           child: const Icon(Icons.chevron_left, color: darkColor, size: 20),
                         ),
                         Text(
-                          'OCTOBER 2023',
+                          monthName,
                           style: GoogleFonts.epilogue(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
@@ -72,7 +131,7 @@ class _HabitsPageState extends State<HabitsPage> {
                         ),
                         _NeuBoxCustom(
                           padding: const EdgeInsets.all(4),
-                          backgroundColor: const Color(0xFFFF649C), // Pink
+                          backgroundColor: const Color(0xFFFF649C),
                           borderWidth: 2,
                           offset: const Offset(3, 3),
                           child: const Icon(Icons.chevron_right, color: darkColor, size: 20),
@@ -95,28 +154,12 @@ class _HabitsPageState extends State<HabitsPage> {
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildDateItem('28', isMuted: true),
-                        _buildDateItem('29', isMuted: true),
-                        _buildDateItem('30', isMuted: true),
-                        _buildDateItem('1', isSelected: false),
-                        _buildDateItem('2', isSelected: false),
-                        _buildDateItem('3', isSelected: false),
-                        _buildDateItem('4', isSelected: false),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildDateItem('5', isSelected: true),
-                        _buildDateItem('6', isSelected: false),
-                        _buildDateItem('7', isSelected: false),
-                        _buildDateItem('8', isSelected: false),
-                        _buildDateItem('9', isSelected: false),
-                        _buildDateItem('10', isSelected: false),
-                        _buildDateItem('11', isSelected: false),
-                      ],
+                      children: List.generate(7, (index) {
+                        final date = now.subtract(Duration(days: now.weekday % 7 - index));
+                        final isToday = date.day == now.day && date.month == now.month;
+                        final isOtherMonth = date.month != now.month;
+                        return _buildDateItem(date.day.toString(), isMuted: isOtherMonth, isSelected: isToday);
+                      }),
                     ),
                   ],
                 ),
@@ -125,7 +168,7 @@ class _HabitsPageState extends State<HabitsPage> {
 
               // DAILY FOCUS
               Text(
-                'DAILY FOCUS',
+                'IBADAH GOALS',
                 style: GoogleFonts.epilogue(
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
@@ -135,7 +178,7 @@ class _HabitsPageState extends State<HabitsPage> {
               const SizedBox(height: 12),
               _NeuBoxCustom(
                 padding: const EdgeInsets.all(16),
-                backgroundColor: const Color(0xFF86EFAC), // Light green
+                backgroundColor: const Color(0xFF86EFAC),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -143,7 +186,7 @@ class _HabitsPageState extends State<HabitsPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'LEVEL UP!',
+                          _completionPercentage >= 100 ? 'EXCELLENT!' : 'KEEP IT UP!',
                           style: GoogleFonts.epilogue(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -151,7 +194,7 @@ class _HabitsPageState extends State<HabitsPage> {
                           ),
                         ),
                         Text(
-                          '65%',
+                          '${_completionPercentage.toInt()}%',
                           style: GoogleFonts.epilogue(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
@@ -169,27 +212,33 @@ class _HabitsPageState extends State<HabitsPage> {
                         color: Colors.white,
                         border: Border.all(color: darkColor, width: 3),
                       ),
-                      child: Row(
+                      child: Stack(
                         children: [
-                          Expanded(
-                            flex: 65,
+                          FractionallySizedBox(
+                            widthFactor: _completionPercentage / 100,
                             child: Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF007BFF),
-                                border: const Border(right: BorderSide(color: darkColor, width: 3)),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF007BFF),
                               ),
                             ),
                           ),
-                          Expanded(
-                            flex: 35,
-                            child: Container(),
+                          Row(
+                            children: List.generate(4, (index) => Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  border: Border(right: BorderSide(color: darkColor.withOpacity(0.5), width: 1.5)),
+                                ),
+                              ),
+                            )),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '"Almost there, keep crushing it!"',
+                      _completionPercentage >= 100 
+                        ? '"MashaAllah, you completed all goals today!"'
+                        : '"Every small step brings you closer to Allah."',
                       style: GoogleFonts.epilogue(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -201,36 +250,26 @@ class _HabitsPageState extends State<HabitsPage> {
               ),
               const SizedBox(height: 24),
 
-              // HABIT LIST items
-              _HabitItem(
-                title: 'DRINK WATER',
-                subtitle: '2L / 3L Daily',
-                iconIcon: Icons.water_drop_outlined,
-                iconBgColor: const Color(0xFFB5D8FF), // Light blue
-                checkedColor: const Color(0xFF007BFF),
-                isChecked: true,
-              ),
-              const SizedBox(height: 16),
-              _HabitItem(
-                title: 'READ BOOK',
-                subtitle: '20 / 20 Pages',
-                iconIcon: Icons.menu_book,
-                iconBgColor: const Color(0xFFE4C1F9), // Light purple
-                checkedColor: const Color(0xFF22C55E), // Green
-                isChecked: true,
-                isCheckMarkDouble: true,
-              ),
-              const SizedBox(height: 16),
-              _HabitItem(
-                title: 'WORKOUT',
-                subtitle: '0 / 45 Mins',
-                iconIcon: Icons.fitness_center,
-                iconBgColor: const Color(0xFFFFD19A), // Orange
-                checkedColor: Colors.white,
-                isChecked: false,
+              // HABIT LIST
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _habits.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 16),
+                itemBuilder: (context, index) {
+                  final habit = _habits[index];
+                  return _HabitItem(
+                    title: habit.title,
+                    subtitle: habit.subtitle,
+                    iconIcon: habit.icon,
+                    iconBgColor: habit.color,
+                    isChecked: habit.isCompleted,
+                    onToggle: () => _toggleHabit(index),
+                  );
+                },
               ),
 
-              const SizedBox(height: 120), // Padding for nav bar
+              const SizedBox(height: 120),
             ],
           ),
         ),
@@ -299,79 +338,81 @@ class _HabitItem extends StatelessWidget {
   final String subtitle;
   final IconData iconIcon;
   final Color iconBgColor;
-  final Color checkedColor;
   final bool isChecked;
-  final bool isCheckMarkDouble;
+  final VoidCallback onToggle;
 
   const _HabitItem({
     required this.title,
     required this.subtitle,
     required this.iconIcon,
     required this.iconBgColor,
-    required this.checkedColor,
     required this.isChecked,
-    this.isCheckMarkDouble = false,
+    required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
     const darkColor = Color(0xFF1A1F2B);
-    return _NeuBoxCustom(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      borderRadius: 0,
-      borderWidth: 3,
-      offset: const Offset(4, 4),
-      backgroundColor: Colors.white,
-      child: Row(
-        children: [
-          // Left Icon
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              border: Border.all(color: darkColor, width: 2.5),
+    return GestureDetector(
+      onTap: onToggle,
+      child: _NeuBoxCustom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        borderRadius: 0,
+        borderWidth: 3,
+        offset: const Offset(4, 4),
+        backgroundColor: isChecked ? Colors.white.withOpacity(0.9) : Colors.white,
+        child: Row(
+          children: [
+            // Left Icon
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                border: Border.all(color: darkColor, width: 2.5),
+              ),
+              child: Icon(iconIcon, color: darkColor, size: 24),
             ),
-            child: Icon(iconIcon, color: darkColor, size: 24),
-          ),
-          const SizedBox(width: 16),
-          // Texts
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.epilogue(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: darkColor,
+            const SizedBox(width: 16),
+            // Texts
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.epilogue(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: isChecked ? darkColor.withOpacity(0.5) : darkColor,
+                      decoration: isChecked ? TextDecoration.lineThrough : null,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.epilogue(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF6C757D),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.epilogue(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF6C757D),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // Checkbox Idea
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: isChecked ? checkedColor : Colors.white,
-              border: Border.all(color: darkColor, width: 2.5),
+            // Checkbox
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isChecked ? const Color(0xFF22C55E) : Colors.white,
+                border: Border.all(color: darkColor, width: 2.5),
+              ),
+              child: isChecked
+                  ? const Icon(Icons.check, color: Colors.white, size: 30)
+                  : const Icon(Icons.check, color: Color(0xFFD3D8E0), size: 30),
             ),
-            child: isChecked
-                ? Icon(isCheckMarkDouble ? Icons.done_all : Icons.check, color: isCheckMarkDouble ? darkColor : Colors.white, size: 30) // from img, the checkmarks are black/darkColor. Wait, first checkmark is white in pic. Let's look closely at image. Drink Water has a white checkmark. Read book has a double black checkmark. Workout has a grey checkmark.
-                : const Icon(Icons.check, color: Color(0xFFD3D8E0), size: 30),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
