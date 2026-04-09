@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'widgets.dart';
 
 class Habit {
   final String title;
@@ -174,7 +175,7 @@ class _HabitsPageState extends State<HabitsPage> {
                   Navigator.pop(context);
                 }
               },
-              child: _NeuBoxCustom(
+              child: NeuBox(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 backgroundColor: const Color(0xFF86EFAC),
                 borderWidth: 2,
@@ -227,7 +228,7 @@ class _HabitsPageState extends State<HabitsPage> {
                 children: [
                   GestureDetector(
                     onTap: () => widget.onNavigateToTab?.call(1),
-                    child: _NeuBoxCustom(
+                    child: NeuBox(
                       padding: const EdgeInsets.all(8),
                       backgroundColor: const Color(0xFF007BFF),
                       child: const Icon(Icons.calendar_month, color: Colors.white, size: 28),
@@ -244,7 +245,7 @@ class _HabitsPageState extends State<HabitsPage> {
                   ),
                   GestureDetector(
                     onTap: () => widget.onNavigateToTab?.call(3),
-                    child: _NeuBoxCustom(
+                    child: NeuBox(
                       padding: const EdgeInsets.all(8),
                       backgroundColor: const Color(0xFFFFBA24),
                       child: const Icon(Icons.person_outline, color: darkColor, size: 28),
@@ -255,7 +256,7 @@ class _HabitsPageState extends State<HabitsPage> {
               const SizedBox(height: 24),
 
               // CALENDAR
-              _NeuBoxCustom(
+              NeuBox(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
@@ -268,7 +269,7 @@ class _HabitsPageState extends State<HabitsPage> {
                               _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1);
                             });
                           },
-                          child: _NeuBoxCustom(
+                          child: NeuBox(
                             padding: const EdgeInsets.all(4),
                             backgroundColor: const Color(0xFFFF649C),
                             borderWidth: 2,
@@ -290,7 +291,7 @@ class _HabitsPageState extends State<HabitsPage> {
                               _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1);
                             });
                           },
-                          child: _NeuBoxCustom(
+                          child: NeuBox(
                             padding: const EdgeInsets.all(4),
                             backgroundColor: const Color(0xFFFF649C),
                             borderWidth: 2,
@@ -364,7 +365,7 @@ class _HabitsPageState extends State<HabitsPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              _NeuBoxCustom(
+              NeuBox(
                 padding: const EdgeInsets.all(16),
                 backgroundColor: const Color(0xFF86EFAC),
                 child: Column(
@@ -487,7 +488,7 @@ class _HabitsPageState extends State<HabitsPage> {
               const SizedBox(height: 24),
               GestureDetector(
                 onTap: _showAddHabitDialog,
-                child: _NeuBoxCustom(
+                child: NeuBox(
                   backgroundColor: const Color(0xFFB5D8FF),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Row(
@@ -594,7 +595,7 @@ class _HabitItem extends StatelessWidget {
     const darkColor = Color(0xFF1A1F2B);
     return GestureDetector(
       onTap: onToggle,
-      child: _NeuBoxCustom(
+      child: NeuBox(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         borderRadius: 0,
         borderWidth: 3,
@@ -657,41 +658,3 @@ class _HabitItem extends StatelessWidget {
   }
 }
 
-class _NeuBoxCustom extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final Color backgroundColor;
-  final double borderRadius;
-  final double borderWidth;
-  final Offset offset;
-
-  const _NeuBoxCustom({
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-    this.backgroundColor = Colors.white,
-    this.borderRadius = 0.0,
-    this.borderWidth = 3.0,
-    this.offset = const Offset(5, 5),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const darkColor = Color(0xFF1A1F2B);
-    return Container(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: darkColor, width: borderWidth),
-        boxShadow: [
-          BoxShadow(
-            color: darkColor,
-            offset: offset,
-            blurRadius: 0,
-          )
-        ],
-      ),
-      padding: padding,
-      child: child,
-    );
-  }
-}

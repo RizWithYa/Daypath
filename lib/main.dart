@@ -10,6 +10,7 @@ import 'package:geocoding/geocoding.dart';
 import 'tasks_page.dart';
 import 'habits_page.dart';
 import 'profile_page.dart';
+import 'widgets.dart';
 
 void main() {
   runApp(const MuslimDailyApp());
@@ -42,8 +43,11 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
-
+  final GlobalKey<ProfilePageState> _profileKey = GlobalKey<ProfilePageState>();
   void _onNavTapped(int index) {
+    if (index == 3) {
+      _profileKey.currentState?.refreshData();
+    }
     setState(() {
       _currentIndex = index;
     });
@@ -58,7 +62,7 @@ class _MainPageState extends State<MainPage> {
           _HomeView(onNavigateToTab: _onNavTapped),
           TasksPage(onNavigateToTab: _onNavTapped),
           HabitsPage(onNavigateToTab: _onNavTapped),
-          ProfilePage(onNavigateToTab: _onNavTapped),
+          ProfilePage(onNavigateToTab: _onNavTapped, profileKey: _profileKey, key: _profileKey),
         ],
       ),
 
@@ -395,7 +399,7 @@ class _HomeViewState extends State<_HomeView> {
                   onTap: _showMenuModal,
                   color: Colors.white,
                   padding: const EdgeInsets.all(8),
-                  child: Image.asset('icon/main_icon/3_Menubar.png', width: 24, height: 24),
+                  child: Image.asset('icon/main_icon/3_Menubar.webp', width: 24, height: 24),
                 ),
 
                 Text(
@@ -411,7 +415,7 @@ class _HomeViewState extends State<_HomeView> {
                   onTap: () => widget.onNavigateToTab?.call(3),
                   color: const Color(0xFFFFBA24), // Yellow
                   padding: const EdgeInsets.all(8),
-                  child: Image.asset('icon/main_icon/User.png', width: 24, height: 24),
+                  child: Image.asset('icon/main_icon/User.webp', width: 24, height: 24),
                 ),
 
               ],
@@ -454,7 +458,7 @@ class _HomeViewState extends State<_HomeView> {
                       Row(
                         children: [
                           Image.asset(
-                            'icon/main_icon/Location.png', 
+                            'icon/main_icon/Location.webp',
                             width: 24, 
                             height: 24,
                             errorBuilder: (_, _, _) => const Icon(Icons.location_on_outlined, color: Color(0xFF007BFF), size: 24),
@@ -557,7 +561,7 @@ children: [
                   ScheduleItem(
                     title: 'Fajr',
                     time: _getTime12Hour(_prayerTimes!['Fajr']!),
-                    iconAsset: 'icon/main_icon/Fajr.png',
+                    iconAsset: 'icon/main_icon/Fajr.webp',
                     iconBgColor: const Color(0xFFFF649C),
                     isActive: _nextPrayerName == 'Fajr',
                     isMuted: _mutedPrayers['Fajr'] ?? false,
@@ -567,7 +571,7 @@ children: [
                   ScheduleItem(
                     title: 'Dhuhr',
                     time: _getTime12Hour(_prayerTimes!['Dhuhr']!),
-                    iconAsset: 'icon/main_icon/Dhuhr.png',
+                    iconAsset: 'icon/main_icon/Dhuhr.webp',
                     iconBgColor: Colors.white,
                     isActive: _nextPrayerName == 'Dhuhr',
                     isMuted: _mutedPrayers['Dhuhr'] ?? false,
@@ -577,7 +581,7 @@ children: [
                   ScheduleItem(
                     title: 'Asr',
                     time: _getTime12Hour(_prayerTimes!['Asr']!),
-                    iconAsset: 'icon/main_icon/Asr.png',
+                    iconAsset: 'icon/main_icon/Asr.webp',
                     iconBgColor: const Color(0xFFCCE4FF),
                     isActive: _nextPrayerName == 'Asr',
                     isMuted: _mutedPrayers['Asr'] ?? false,
@@ -587,7 +591,7 @@ children: [
                   ScheduleItem(
                     title: 'Maghrib',
                     time: _getTime12Hour(_prayerTimes!['Maghrib']!),
-                    iconAsset: 'icon/main_icon/Maghrib.png',
+                    iconAsset: 'icon/main_icon/Maghrib.webp',
                     iconBgColor: darkColor,
                     isActive: _nextPrayerName == 'Maghrib',
                     isMuted: _mutedPrayers['Maghrib'] ?? false,
@@ -598,7 +602,7 @@ children: [
                   ScheduleItem(
                     title: 'Isha',
                     time: _getTime12Hour(_prayerTimes!['Isha']!),
-                    iconAsset: 'icon/main_icon/Maghrib.png', // Fallback icon since Isha.png was not provided
+                    iconAsset: 'icon/main_icon/Maghrib.webp', // Fallback icon since Isha.webp was not provided
                     iconBgColor: const Color(0xFF1A1F2B),
                     isActive: _nextPrayerName == 'Isha',
                     isMuted: _mutedPrayers['Isha'] ?? false,
@@ -646,7 +650,7 @@ children: [
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(5.5),
                 child: Image.asset(
-                  'icon/main_icon/Overlay+Border+Shadow.png', // Assuming map snippet
+                  'icon/main_icon/Overlay+Border+Shadow.webp', // Assuming map snippet
                   height: 150,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -679,40 +683,6 @@ children: [
 
 // --- REUSABLE COMPONENTS ---
 
-class NeuBox extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final Color backgroundColor;
-  final double borderRadius;
-
-  const NeuBox({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-    this.backgroundColor = Colors.white,
-    this.borderRadius = 8.0,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: const Color(0xFF1A1F2B), width: 3.5),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1A1F2B),
-            offset: Offset(borderRadius > 8 ? 6 : 4, borderRadius > 8 ? 6 : 4),
-            blurRadius: 0,
-          )
-        ],
-      ),
-      padding: padding,
-      child: child,
-    );
-  }
-}
 
 class NeuButton extends StatelessWidget {
   final Widget child;
@@ -854,10 +824,10 @@ class CustomBottomNav extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Expanded(child: _buildNavItem(0, 'Home', 'icon/main_icon/Home_navbar.png')),
-                    Expanded(child: _buildNavItem(1, 'Tasks', 'icon/main_icon/Task_navbar.png')),
-                    Expanded(child: _buildNavItem(2, 'Habits', 'icon/main_icon/Habits_navbar.png')),
-                    Expanded(child: _buildNavItem(3, 'Profile', 'icon/main_icon/Profile_navbar.png')),
+                    Expanded(child: _buildNavItem(0, 'Home', 'icon/main_icon/Home_navbar.webp')),
+                    Expanded(child: _buildNavItem(1, 'Tasks', 'icon/main_icon/Task_navbar.webp')),
+                    Expanded(child: _buildNavItem(2, 'Habits', 'icon/main_icon/Habits_navbar.webp')),
+                    Expanded(child: _buildNavItem(3, 'Profile', 'icon/main_icon/Profile_navbar.webp')),
                   ],
                 ),
               ),

@@ -1,48 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-
-enum TaskCategory { work, personal }
-
-class TodoTask {
-  final String id;
-  final String title;
-  final String subtitle;
-  final bool isUrgent;
-  bool isDone;
-  final Color? leftDeco;
-  final TaskCategory category;
-
-  TodoTask({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    this.isUrgent = false,
-    this.isDone = false,
-    this.leftDeco,
-    this.category = TaskCategory.personal,
-  });
-
-  TodoTask copyWith({
-    String? id,
-    String? title,
-    String? subtitle,
-    bool? isUrgent,
-    bool? isDone,
-    Color? leftDeco,
-    TaskCategory? category,
-  }) {
-    return TodoTask(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      subtitle: subtitle ?? this.subtitle,
-      isUrgent: isUrgent ?? this.isUrgent,
-      isDone: isDone ?? this.isDone,
-      leftDeco: leftDeco ?? this.leftDeco,
-      category: category ?? this.category,
-    );
-  }
-}
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'models.dart';
+import 'widgets.dart';
 
 class TasksPage extends StatefulWidget {
   final void Function(int)? onNavigateToTab;
@@ -55,51 +17,122 @@ class TasksPage extends StatefulWidget {
 class _TasksPageState extends State<TasksPage> {
   int _selectedTab = 0; // 0=ALL, 1=WORK, 2=PERSONAL
   DateTime _selectedDate = DateTime.now();
+  List<TodoTask> _tasks = [];
+  bool _isLoading = true;
 
-  final List<TodoTask> _tasks = [
-    TodoTask(
-      id: '1',
-      title: 'Design Review\\nPresentation',
-      subtitle: '9:00 AM - 10:30 AM',
-      isUrgent: true,
-      category: TaskCategory.work,
-    ),
-    TodoTask(
-      id: '2',
-      title: 'Submit Q3 Reports',
-      subtitle: 'DUE TODAY',
-      isUrgent: true,
-      category: TaskCategory.work,
-    ),
-    TodoTask(
-      id: '3',
-      title: 'Pick up groceries',
-      subtitle: 'PERSONAL',
-      leftDeco: const Color(0xFF007BFF),
-      category: TaskCategory.personal,
-    ),
-    TodoTask(
-      id: '4',
-      title: 'Call the plumber',
-      subtitle: 'HOME MAINTENANCE',
-      category: TaskCategory.personal,
-    ),
-    TodoTask(
-      id: '5',
-      title: 'Morning Workout',
-      subtitle: 'HEALTH',
-      isDone: true,
-      category: TaskCategory.personal,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
+
+  Future<void> _loadTasks() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? tasksJson = prefs.getString('tasks_list');
+      if (tasksJson != null) {
+        final List<dynamic> decoded = jsonDecode(tasksJson);
+        setState(() {
+          _tasks = decoded.map((item) => TodoTask.fromJson(item)).toList();
+        });
+      } else {
+        _tasks = [
+          TodoTask(
+            id: '1',
+            title: 'Design Review\\nPresentation',
+            subtitle: '9:00 AM - 10:30 AM',
+            isUrgent: true,
+            category: TaskCategory.work,
+          ),
+          TodoTask(
+            id: '2',
+            title: 'Submit Q3 Reports',
+            subtitle: 'DUE TODAY',
+            isUrgent: true,
+            category: TaskCategory.work,
+          ),
+          TodoTask(
+            id: '3',
+            title: 'Pick up groceries',
+            subtitle: 'PERSONAL',
+            leftDeco: const Color(0xFF007BFF),
+            category: TaskCategory.personal,
+          ),
+          TodoTask(
+            id: '4',
+            title: 'Call the plumber',
+            subtitle: 'HOME MAINTENANCE',
+            category: TaskCategory.personal,
+          ),
+          TodoTask(
+            id: '5',
+            title: 'Morning Workout',
+            subtitle: 'HEALTH',
+            isDone: true,
+            category: TaskCategory.personal,
+          ),
+        ];
+      }
+    } catch (e) {
+      debugPrint('Error loading tasks: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String tasksJson = jsonEncode(_tasks.map((t) => t.toJson()).toList());
+    await prefs.setString('tasks_list', tasksJson);
+  }
 
   void _toggleTaskStatus(String id) {
+    TodoTask? taskToCheck;
     setState(() {
       final taskIndex = _tasks.indexWhere((t) => t.id == id);
       if (taskIndex != -1) {
         _tasks[taskIndex].isDone = !_tasks[taskIndex].isDone;
+        if (_tasks[taskIndex].isDone) {
+          taskToCheck = _tasks[taskIndex];
+        }
       }
     });
+    _saveTasks();
+
+    if (taskToCheck != null) {
+      AchievementManager.checkAndUnlock(taskToCheck!, onAchievementUnlocked: (achievementId) {
+        if (!mounted) return;
+        final achievement = Achievement.defaultAchievements.firstWhere((a) => a.id == achievementId);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF00FF7F),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(0),
+              side: const BorderSide(color: Color(0xFF1A1F2B), width: 2),
+            ),
+            content: Row(
+              children: [
+                Icon(achievement.icon, color: const Color(0xFF1A1F2B)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('ACHIEVEMENT UNLOCKED!', style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, color: const Color(0xFF1A1F2B), fontSize: 10)),
+                      Text(achievement.title, style: GoogleFonts.epilogue(fontWeight: FontWeight.w700, color: const Color(0xFF1A1F2B))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      });
+    }
   }
 
   void _selectDate() async {
@@ -136,6 +169,8 @@ class _TasksPageState extends State<TasksPage> {
   void _addNewTask() {
     String title = '';
     String subtitle = '';
+    String description = '';
+    DateTime? dueDate;
     TaskCategory category = TaskCategory.personal;
     bool isUrgent = false;
 
@@ -146,14 +181,19 @@ class _TasksPageState extends State<TasksPage> {
           builder: (context, setDialogState) {
             const darkColor = Color(0xFF1A1F2B);
             return AlertDialog(
-              backgroundColor: const Color(0xFFE5F1FF),
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(0),
-                side: const BorderSide(color: darkColor, width: 3),
+                side: const BorderSide(color: darkColor, width: 3.5),
               ),
               title: Text(
                 'ADD NEW TASK',
-                style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, color: darkColor),
+                style: GoogleFonts.epilogue(
+                  fontWeight: FontWeight.w900,
+                  color: darkColor,
+                  letterSpacing: -0.5,
+                ),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -164,11 +204,13 @@ class _TasksPageState extends State<TasksPage> {
                     const SizedBox(height: 8),
                     TextField(
                       onChanged: (value) => title = value,
+                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w600),
                       decoration: const InputDecoration(
                         filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2)),
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2)),
+                        fillColor: Color(0xFFF3F4F6),
+                        border: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 3)),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -176,11 +218,73 @@ class _TasksPageState extends State<TasksPage> {
                     const SizedBox(height: 8),
                     TextField(
                       onChanged: (value) => subtitle = value,
+                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w600),
                       decoration: const InputDecoration(
                         filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2)),
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2)),
+                        fillColor: Color(0xFFF3F4F6),
+                        border: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 3)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('DESCRIPTION', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      onChanged: (value) => description = value,
+                      maxLines: 3,
+                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w500),
+                      decoration: const InputDecoration(
+                        filled: true,
+                        fillColor: Color(0xFFF3F4F6),
+                        border: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 3)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('DUE DATE', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.light(
+                                  primary: darkColor,
+                                  onPrimary: Colors.white,
+                                  onSurface: darkColor,
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setDialogState(() => dueDate = picked);
+                        }
+                      },
+                      child: NeuBox(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        backgroundColor: const Color(0xFFF3F4F6),
+                        borderRadius: 0,
+                        borderWidth: 2.5,
+                        offset: const Offset(3, 3),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              dueDate == null ? 'SELECT DATE' : DateFormat('MMM dd, yyyy').format(dueDate!),
+                              style: GoogleFonts.epilogue(fontWeight: FontWeight.w700, color: darkColor),
+                            ),
+                            const Icon(Icons.calendar_today, size: 18, color: darkColor),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -195,7 +299,14 @@ class _TasksPageState extends State<TasksPage> {
                             if (selected) setDialogState(() => category = TaskCategory.work);
                           },
                           selectedColor: const Color(0xFF007BFF),
-                          labelStyle: TextStyle(color: category == TaskCategory.work ? Colors.white : darkColor),
+                          labelStyle: GoogleFonts.epilogue(
+                            fontWeight: FontWeight.bold,
+                            color: category == TaskCategory.work ? Colors.white : darkColor,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0),
+                            side: const BorderSide(color: darkColor, width: 2),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         ChoiceChip(
@@ -205,18 +316,32 @@ class _TasksPageState extends State<TasksPage> {
                             if (selected) setDialogState(() => category = TaskCategory.personal);
                           },
                           selectedColor: const Color(0xFF007BFF),
-                          labelStyle: TextStyle(color: category == TaskCategory.personal ? Colors.white : darkColor),
+                          labelStyle: GoogleFonts.epilogue(
+                            fontWeight: FontWeight.bold,
+                            color: category == TaskCategory.personal ? Colors.white : darkColor,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0),
+                            side: const BorderSide(color: darkColor, width: 2),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        Checkbox(
-                          value: isUrgent,
-                          onChanged: (value) => setDialogState(() => isUrgent = value ?? false),
-                          activeColor: const Color(0xFFFF649C),
+                        SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: Checkbox(
+                            value: isUrgent,
+                            onChanged: (value) => setDialogState(() => isUrgent = value ?? false),
+                            activeColor: const Color(0xFFFF649C),
+                            side: const BorderSide(color: darkColor, width: 2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                          ),
                         ),
+                        const SizedBox(width: 12),
                         Text('MARK AS URGENT', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
                       ],
                     ),
@@ -228,9 +353,12 @@ class _TasksPageState extends State<TasksPage> {
                   onPressed: () => Navigator.pop(context),
                   child: Text('CANCEL', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
                 ),
-                _NeuBoxCustom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                NeuBox(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   backgroundColor: const Color(0xFF00FF7F),
+                  borderRadius: 0,
+                  borderWidth: 3,
+                  offset: const Offset(4, 4),
                   child: InkWell(
                     onTap: () {
                       if (title.isNotEmpty) {
@@ -238,20 +366,167 @@ class _TasksPageState extends State<TasksPage> {
                           _tasks.add(TodoTask(
                             id: DateTime.now().millisecondsSinceEpoch.toString(),
                             title: title,
-                            subtitle: subtitle,
+                            subtitle: subtitle.isNotEmpty 
+                                ? subtitle 
+                                : (dueDate != null ? DateFormat('MMM dd, yyyy').format(dueDate!) : 'NO DUE DATE'),
+                            description: description,
+                            dueDate: dueDate,
                             isUrgent: isUrgent,
                             category: category,
                           ));
                         });
+                        _saveTasks();
                         Navigator.pop(context);
                       }
                     },
-                    child: Text('CONFIRM', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
+                    child: Text('CONFIRM', style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, color: darkColor)),
                   ),
                 ),
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  void _showTaskDetails(TodoTask task) {
+    const darkColor = Color(0xFF1A1F2B);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+            border: Border(
+              top: BorderSide(color: darkColor, width: 4),
+              left: BorderSide(color: darkColor, width: 4),
+              right: BorderSide(color: darkColor, width: 4),
+            ),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CategoryBadge(
+                      text: task.category.name.toUpperCase(),
+                      color: task.category == TaskCategory.work ? const Color(0xFF00FF7F) : const Color(0xFFFF649C),
+                    ),
+                    const SizedBox(width: 8),
+                    if (task.isUrgent)
+                      const CategoryBadge(text: 'URGENT', color: Color(0xFFFFBA24)),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, color: darkColor, size: 28),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  task.title.replaceAll('\\n', '\n'),
+                  style: GoogleFonts.epilogue(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: darkColor,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  task.subtitle,
+                  style: GoogleFonts.epilogue(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF6C757D),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                if (task.dueDate != null) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 20, color: darkColor),
+                      const SizedBox(width: 8),
+                      Text(
+                        'DUE: ${DateFormat('EEEE, MMM dd, yyyy').format(task.dueDate!)}',
+                        style: GoogleFonts.epilogue(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: darkColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                Text(
+                  'DESCRIPTION',
+                  style: GoogleFonts.epilogue(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: darkColor,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F4F6),
+                    border: Border.all(color: darkColor, width: 2),
+                  ),
+                  child: Text(
+                    task.description.isEmpty ? 'No description provided.' : task.description,
+                    style: GoogleFonts.epilogue(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: darkColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: NeuBox(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: task.isDone ? const Color(0xFFD1D5DB) : const Color(0xFF007BFF),
+                    borderRadius: 0,
+                    borderWidth: 3,
+                    offset: const Offset(4, 4),
+                    child: InkWell(
+                      onTap: () {
+                        _toggleTaskStatus(task.id);
+                        Navigator.pop(context);
+                      },
+                      child: Center(
+                        child: Text(
+                          task.isDone ? 'MARK AS PENDING' : 'MARK AS COMPLETE',
+                          style: GoogleFonts.epilogue(
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -271,6 +546,13 @@ class _TasksPageState extends State<TasksPage> {
     final urgentTasks = filteredByTab.where((t) => t.isUrgent && !t.isDone).toList();
     final pendingTasks = filteredByTab.where((t) => !t.isUrgent && !t.isDone).toList();
     final doneTasks = filteredByTab.where((t) => t.isDone).toList();
+
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFE5F1FF),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     int workCount = _tasks.where((t) => t.category == TaskCategory.work).length;
     int personalCount = _tasks.where((t) => t.category == TaskCategory.personal).length;
@@ -327,7 +609,7 @@ class _TasksPageState extends State<TasksPage> {
                   ),
                   GestureDetector(
                     onTap: _selectDate,
-                    child: _NeuBoxCustom(
+                    child: NeuBox(
                       padding: const EdgeInsets.all(12),
                       backgroundColor: const Color(0xFFFFBA24), // Yellow
                       child: const Icon(Icons.calendar_month, color: darkColor, size: 28),
@@ -410,17 +692,23 @@ class _TasksPageState extends State<TasksPage> {
             }
           }
         });
+        _saveTasks();
       },
       builder: (context, candidateData, rejectedData) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _CategoryBadge(text: title, color: badgeColor),
+            CategoryBadge(text: title, color: badgeColor),
             const SizedBox(height: 12),
             if (tasks.isEmpty)
-              Text(
-                'No tasks here',
-                style: GoogleFonts.epilogue(color: Colors.grey, fontWeight: FontWeight.bold),
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(minHeight: 100),
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'No tasks here',
+                  style: GoogleFonts.epilogue(color: Colors.grey, fontWeight: FontWeight.bold),
+                ),
               )
             else
               ...tasks.map((task) => Padding(
@@ -436,6 +724,7 @@ class _TasksPageState extends State<TasksPage> {
                         subtitle: task.subtitle,
                         iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : Colors.white,
                         onToggle: () {},
+                        onTap: () {},
                         isCheckbox: true,
                         checked: task.isDone,
                         isDone: task.isDone,
@@ -451,6 +740,7 @@ class _TasksPageState extends State<TasksPage> {
                       subtitle: task.subtitle,
                       iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : Colors.white,
                       onToggle: () {},
+                      onTap: () {},
                       isCheckbox: true,
                       checked: task.isDone,
                       isDone: task.isDone,
@@ -478,6 +768,7 @@ class _TasksPageState extends State<TasksPage> {
                           final adjustedNewIndex = _tasks.indexWhere((t) => t.id == task.id);
                           _tasks.insert(adjustedNewIndex, updatedTask);
                         });
+                        _saveTasks();
                       }
                     },
                     builder: (context, candidateData, rejectedData) {
@@ -486,6 +777,7 @@ class _TasksPageState extends State<TasksPage> {
                         subtitle: task.subtitle,
                         iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : (isDoneSection ? const Color(0xFF69B4FF) : Colors.white),
                         onToggle: () => _toggleTaskStatus(task.id),
+                        onTap: () => _showTaskDetails(task),
                         isCheckbox: true,
                         checked: task.isDone,
                         isDone: task.isDone,
@@ -503,33 +795,6 @@ class _TasksPageState extends State<TasksPage> {
   }
 }
 
-class _CategoryBadge extends StatelessWidget {
-  final String text;
-  final Color color;
-
-  const _CategoryBadge({required this.text, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    const darkColor = Color(0xFF1A1F2B);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color,
-        border: Border.all(color: darkColor, width: 2.5),
-      ),
-      child: Text(
-        text,
-        style: GoogleFonts.epilogue(
-          fontWeight: FontWeight.w800,
-          fontSize: 14,
-          color: darkColor,
-        ),
-      ),
-    );
-  }
-}
-
 class _TabItem extends StatelessWidget {
   final String title;
   final bool isActive;
@@ -540,7 +805,7 @@ class _TabItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const darkColor = Color(0xFF1A1F2B);
-    return _NeuBoxCustom(
+    return NeuBox(
       padding: const EdgeInsets.symmetric(vertical: 12),
       backgroundColor: isActive ? (color ?? Colors.white) : Colors.white,
       borderRadius: 0,
@@ -570,12 +835,14 @@ class _TaskItem extends StatelessWidget {
   final bool isDone;
   final Color? leftDeco;
   final VoidCallback onToggle;
+  final VoidCallback onTap;
 
   const _TaskItem({
     required this.title,
     required this.subtitle,
     required this.iconBgColor,
     required this.onToggle,
+    required this.onTap,
     this.iconIcon,
     this.isCheckbox = false,
     this.checked = false,
@@ -586,121 +853,98 @@ class _TaskItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const darkColor = Color(0xFF1A1F2B);
-    return GestureDetector(
-      onTap: onToggle,
-      child: Stack(
-        children: [
-          _NeuBoxCustom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            borderRadius: 0,
-            borderWidth: 3,
-            offset: const Offset(5, 5),
-            backgroundColor: isDone ? const Color(0xFFF3F4F6) : Colors.white,
+    return Stack(
+      children: [
+        NeuBox(
+          padding: EdgeInsets.zero,
+          borderRadius: 0,
+          borderWidth: 3,
+          offset: const Offset(5, 5),
+          backgroundColor: isDone ? const Color(0xFFF3F4F6) : Colors.white,
+          child: IntrinsicHeight(
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Icon or Checkbox
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: isCheckbox ? (checked ? const Color(0xFF69B4FF) : Colors.white) : iconBgColor,
-                    border: Border.all(color: darkColor, width: 2),
+                // Icon or Checkbox Area
+                GestureDetector(
+                  onTap: onToggle,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: isCheckbox ? (checked ? const Color(0xFF69B4FF) : Colors.white) : iconBgColor,
+                        border: Border.all(color: darkColor, width: 2),
+                      ),
+                      child: isCheckbox
+                          ? (checked ? const Icon(Icons.check, size: 16, color: Colors.white) : null)
+                          : Icon(iconIcon, size: 16, color: darkColor),
+                    ),
                   ),
-                  child: isCheckbox
-                      ? (checked ? const Icon(Icons.check, size: 16, color: Colors.white) : null)
-                      : Icon(iconIcon, size: 16, color: darkColor),
                 ),
-                const SizedBox(width: 16),
-                // Text Content
+                // Text Content Area
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title.replaceAll('\\n', '\n'),
-                        style: GoogleFonts.epilogue(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: isDone ? const Color(0xFF9CA3AF) : darkColor,
-                          decoration: isDone ? TextDecoration.lineThrough : null,
-                        ),
+                  child: GestureDetector(
+                    onTap: onTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title.replaceAll('\\n', '\n'),
+                            style: GoogleFonts.epilogue(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: isDone ? const Color(0xFF9CA3AF) : darkColor,
+                              decoration: isDone ? TextDecoration.lineThrough : null,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: GoogleFonts.epilogue(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF6C757D),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: GoogleFonts.epilogue(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF6C757D),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 // Drag indicator
-                const Icon(Icons.drag_indicator, color: Color(0xFF9CA3AF)),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Icon(Icons.drag_indicator, color: Color(0xFF9CA3AF)),
+                ),
               ],
             ),
           ),
-          if (leftDeco != null)
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 5, // Account for shadow
-              width: 8,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: leftDeco,
-                  border: const Border(
-                    top: BorderSide(color: darkColor, width: 3),
-                    bottom: BorderSide(color: darkColor, width: 3),
-                    left: BorderSide(color: darkColor, width: 3),
-                  ),
+        ),
+        if (leftDeco != null)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 5, // Account for shadow
+            width: 8,
+            child: Container(
+              decoration: BoxDecoration(
+                color: leftDeco,
+                border: const Border(
+                  top: BorderSide(color: darkColor, width: 3),
+                  bottom: BorderSide(color: darkColor, width: 3),
+                  left: BorderSide(color: darkColor, width: 3),
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NeuBoxCustom extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final Color backgroundColor;
-  final double borderRadius;
-  final double borderWidth;
-  final Offset offset;
-
-  const _NeuBoxCustom({
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-    this.backgroundColor = Colors.white,
-    this.borderRadius = 8.0,
-    this.borderWidth = 3.5,
-    this.offset = const Offset(4, 4),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const darkColor = Color(0xFF1A1F2B);
-    return Container(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: darkColor, width: borderWidth),
-        boxShadow: [
-          BoxShadow(
-            color: darkColor,
-            offset: offset,
-            blurRadius: 0,
-          )
-        ],
-      ),
-      padding: padding,
-      child: child,
+          ),
+      ],
     );
   }
 }

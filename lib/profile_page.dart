@@ -5,16 +5,22 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todo_application_v1/models.dart';
+import 'widgets.dart';
 
-class ProfilePage extends StatefulWidget {
+  class ProfilePage extends StatefulWidget {
   final void Function(int)? onNavigateToTab;
-  const ProfilePage({super.key, this.onNavigateToTab});
+  final GlobalKey<ProfilePageState>? profileKey;
+  const ProfilePage({super.key, this.onNavigateToTab, this.profileKey});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<ProfilePage> createState() => ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class ProfilePageState extends State<ProfilePage> {
+  void refreshData() {
+    _loadProfileData();
+  }
   String _userName = 'ALEX RIVERA';
   String? _imagePath;
   bool _isLoading = true;
@@ -24,6 +30,7 @@ class _ProfilePageState extends State<ProfilePage> {
   int _streakDays = 0;
   DateTime? _memberSince;
   List<int> _weeklyProgress = [];
+  List<String> _unlockedAchievementIds = [];
 
   @override
   void initState() {
@@ -57,12 +64,13 @@ class _ProfilePageState extends State<ProfilePage> {
         try {
           _weeklyProgress = List<int>.from(jsonDecode(weeklyProgressStr));
         } catch (e) {
-          _weeklyProgress = [3, 5, 2, 7, 4, 6, 1];
+          _weeklyProgress = List.generate(7, (_) => 0);
         }
       } else {
-        _weeklyProgress = [3, 5, 2, 7, 4, 6, 1];
+        _weeklyProgress = List.generate(7, (_) => 0);
         prefs.setString('weekly_progress', jsonEncode(_weeklyProgress));
       }
+      _unlockedAchievementIds = prefs.getStringList('unlocked_achievement_ids') ?? [];
 
       _isLoading = false;
     });
@@ -105,7 +113,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Navigator.pop(context);
                   _showResetConfirmation();
                 },
-                child: _NeuBoxCustom(
+                child: NeuBox(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   backgroundColor: const Color(0xFFFF649C),
                   child: Row(
@@ -121,7 +129,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 16),
-              _NeuBoxCustom(
+              NeuBox(
                 padding: const EdgeInsets.all(16),
                 backgroundColor: const Color(0xFFE8EDFF),
                 child: Column(
@@ -182,28 +190,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
       ),
     );
-  }
-
-  Future<void> _incrementTasksDone() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _tasksDone++;
-      prefs.setInt('tasks_done', _tasksDone);
-      
-      // Update weekly progress (last day)
-      if (_weeklyProgress.isNotEmpty) {
-        _weeklyProgress[_weeklyProgress.length - 1]++;
-        prefs.setString('weekly_progress', jsonEncode(_weeklyProgress));
-      }
-    });
-  }
-
-  Future<void> _incrementStreak() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _streakDays++;
-      prefs.setInt('streak_days', _streakDays);
-    });
   }
 
   Future<void> _saveUserName(String name) async {
@@ -387,7 +373,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   GestureDetector(
                     onTap: () => widget.onNavigateToTab?.call(0),
-                    child: _NeuBoxCustom(
+                    child: NeuBox(
                       padding: const EdgeInsets.all(8),
                       backgroundColor: Colors.white,
                       child: const Icon(Icons.arrow_back, color: darkColor, size: 28),
@@ -405,7 +391,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   GestureDetector(
                     onTap: _showSettingsSheet,
-                    child: _NeuBoxCustom(
+                    child: NeuBox(
                       padding: const EdgeInsets.all(8),
                       backgroundColor: Colors.white,
                       child: const Icon(Icons.settings_outlined, color: darkColor, size: 28),
@@ -516,7 +502,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   border: Border.all(color: darkColor, width: 2),
                 ),
                 child: Text(
-                  'Productivity Master',
+                  _unlockedAchievementIds.isEmpty 
+                    ? 'Productivity Master' 
+                    : Achievement.defaultAchievements.firstWhere((a) => a.id == _unlockedAchievementIds.last).title,
                   style: GoogleFonts.epilogue(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -535,11 +523,10 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 32),
 
-              // STATS ROW
               Row(
                 children: [
                   Expanded(
-                    child: _NeuBoxCustom(
+                    child: NeuBox(
                       padding: const EdgeInsets.all(16),
                       backgroundColor: Colors.white,
                       child: Column(
@@ -584,7 +571,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _NeuBoxCustom(
+                    child: NeuBox(
                       padding: const EdgeInsets.all(16),
                       backgroundColor: const Color(0xFFF7FF5C), // Yellow bg
                       child: Column(
@@ -631,7 +618,7 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 24),
 
               // WEEKLY PROGRESS
-              _NeuBoxCustom(
+              NeuBox(
                 padding: const EdgeInsets.all(20),
                 backgroundColor: Colors.white,
                 child: Column(
@@ -700,33 +687,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 scrollDirection: Axis.horizontal,
                 clipBehavior: Clip.none,
                 child: Row(
-                  children: [
-                    _buildAchievementBadge(Icons.workspace_premium_outlined, 'EARLY BIRD'),
-                    const SizedBox(width: 16),
-                    _buildAchievementBadge(Icons.bolt, 'FAST MOVER'),
-                    const SizedBox(width: 16),
-                    _buildAchievementBadge(Icons.star_border, 'PERFECT WEEK'),
-                    const SizedBox(width: 16),
-                    // Just an empty partial box to hint it's scrollable
-                    Container(
-                      width: 30,
-                      height: 110,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: const Border(
-                          top: BorderSide(color: darkColor, width: 3),
-                          bottom: BorderSide(color: darkColor, width: 3),
-                          left: BorderSide(color: darkColor, width: 3),
-                        ),
-                        boxShadow: const [
-                          BoxShadow(color: darkColor, offset: Offset(4, 4))
-                        ],
-                      ),
-                    ),
-                  ],
+                  children: Achievement.defaultAchievements.map((achievement) {
+                    final isUnlocked = _unlockedAchievementIds.contains(achievement.id);
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: _buildAchievementBadge(achievement, isUnlocked),
+                    );
+                  }).toList(),
                 ),
               ),
-
               const SizedBox(height: 120), // Padding for nav bar
             ],
           ),
@@ -754,27 +723,49 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildAchievementBadge(IconData icon, String label) {
+  Widget _buildAchievementBadge(Achievement achievement, bool isUnlocked) {
     const darkColor = Color(0xFF1A1F2B);
-    return _NeuBoxCustom(
+    // Standard grayscale matrix
+    const ColorFilter greyscale = ColorFilter.matrix(<double>[
+      0.2126, 0.7152, 0.0722, 0, 0,
+      0.2126, 0.7152, 0.0722, 0, 0,
+      0.2126, 0.7152, 0.0722, 0, 0,
+      0, 0, 0, 1, 0,
+    ]);
+
+    return NeuBox(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      backgroundColor: Colors.white,
+      backgroundColor: isUnlocked ? Colors.white : const Color(0xFFE5E7EB),
       child: Column(
         children: [
-          Icon(icon, color: darkColor, size: 32),
+          ColorFiltered(
+            colorFilter: isUnlocked ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply) : greyscale,
+            child: Icon(achievement.icon, color: darkColor, size: 32),
+          ),
           const SizedBox(height: 12),
           Text(
-            label,
+            achievement.title.toUpperCase(),
             style: GoogleFonts.epilogue(
               fontSize: 10,
               fontWeight: FontWeight.w800,
               color: darkColor,
             ),
           ),
+          if (!isUnlocked) ...[
+            const SizedBox(height: 4),
+            Text(
+              'LOCKED',
+              style: GoogleFonts.epilogue(
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
         ],
       ),
     );
-  }
+}
 }
 
 class _DayLabel extends StatelessWidget {
@@ -800,41 +791,3 @@ class _DayLabel extends StatelessWidget {
   }
 }
 
-class _NeuBoxCustom extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final Color backgroundColor;
-  final double borderRadius;
-  final double borderWidth;
-  final Offset offset;
-
-  const _NeuBoxCustom({
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-    this.backgroundColor = Colors.white,
-    this.borderRadius = 0.0,
-    this.borderWidth = 3.0,
-    this.offset = const Offset(5, 5),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const darkColor = Color(0xFF1A1F2B);
-    return Container(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: darkColor, width: borderWidth),
-        boxShadow: [
-          BoxShadow(
-            color: darkColor,
-            offset: offset,
-            blurRadius: 0,
-          )
-        ],
-      ),
-      padding: padding,
-      child: child,
-    );
-  }
-}
