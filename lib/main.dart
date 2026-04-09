@@ -45,12 +45,19 @@ class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
   bool _isProgrammaticChange = false;
   late final PageController _pageController;
+  late final List<Widget> _pages;
   final GlobalKey<ProfilePageState> _profileKey = GlobalKey<ProfilePageState>();
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
+    _pages = [
+      _HomeView(onNavigateToTab: _onNavTapped),
+      TasksPage(onNavigateToTab: _onNavTapped),
+      HabitsPage(onNavigateToTab: _onNavTapped),
+      ProfilePage(onNavigateToTab: _onNavTapped, profileKey: _profileKey, key: _profileKey),
+    ];
   }
 
   @override
@@ -70,8 +77,8 @@ class _MainPageState extends State<MainPage> {
     });
     _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.fastOutSlowIn,
     ).then((_) => _isProgrammaticChange = false);
   }
 
@@ -92,12 +99,7 @@ class _MainPageState extends State<MainPage> {
         controller: _pageController,
         physics: const ClampingScrollPhysics(),
         onPageChanged: _onPageChanged,
-        children: [
-          _HomeView(onNavigateToTab: _onNavTapped),
-          TasksPage(onNavigateToTab: _onNavTapped),
-          HabitsPage(onNavigateToTab: _onNavTapped),
-          ProfilePage(onNavigateToTab: _onNavTapped, profileKey: _profileKey, key: _profileKey),
-        ],
+        children: _pages,
       ),
 
       bottomNavigationBar: CustomBottomNav(
@@ -603,7 +605,6 @@ class _HomeViewState extends State<_HomeView> {
             const SizedBox(height: 16),
 
             if (_prayerTimes == null || _isLoading)
-
               const Padding(
                 padding: EdgeInsets.all(20),
                 child: Center(child: CircularProgressIndicator()),
@@ -810,7 +811,6 @@ class CustomBottomNav extends StatefulWidget {
 
 class _CustomBottomNavState extends State<CustomBottomNav> {
   int _pressedIndex = -1;
-  Duration _scaleDuration = const Duration(milliseconds: 150);
 
   @override
   Widget build(BuildContext context) {
@@ -820,15 +820,59 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
         margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         child: NeuBox(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(child: _buildNavItem(0, 'HOME', 'icon/main_icon/Home_navbar.webp')),
-              Expanded(child: _buildNavItem(1, 'TASKS', 'icon/main_icon/Task_navbar.webp')),
-              Expanded(child: _buildNavItem(2, 'HABITS', 'icon/main_icon/Habits_navbar.webp')),
-              Expanded(child: _buildNavItem(3, 'PROFILE', 'icon/main_icon/Profile_navbar.webp')),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final tabWidth = constraints.maxWidth / 4;
+
+              return Stack(
+                children: [
+                  // SLIDING PILL INDICATOR
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.fastOutSlowIn,
+                    left: widget.currentIndex * tabWidth,
+                    top: 0,
+                    bottom: 0,
+                    width: tabWidth,
+                    child: Center(
+                      child: AnimatedScale(
+                        scale: _pressedIndex == widget.currentIndex ? 0.90 : 1.0,
+                        duration: const Duration(milliseconds: 150),
+                        curve: Curves.easeOut,
+                        child: Container(
+                          width: tabWidth - 12,
+                          height: double.infinity,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF007BFF),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF1A1F2B), width: 2.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF1A1F2B),
+                                offset: _pressedIndex == widget.currentIndex ? const Offset(0, 0) : const Offset(3, 3),
+                                blurRadius: 0,
+                              )
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // TAB ITEMS
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: _buildNavItem(0, 'HOME', 'icon/main_icon/Home_navbar.webp')),
+                      Expanded(child: _buildNavItem(1, 'TASKS', 'icon/main_icon/Task_navbar.webp')),
+                      Expanded(child: _buildNavItem(2, 'HABITS', 'icon/main_icon/Habits_navbar.webp')),
+                      Expanded(child: _buildNavItem(3, 'PROFILE', 'icon/main_icon/Profile_navbar.webp')),
+                    ],
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -841,65 +885,49 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
     final contentColor = isActive ? Colors.white : Colors.grey[500]!;
 
     return GestureDetector(
-      onTapDown: (_) => setState(() {
-        _pressedIndex = index;
-        _scaleDuration = const Duration(milliseconds: 100);
-      }),
-      onTapUp: (_) {
-        widget.onTap(index);
-        setState(() {
-          _pressedIndex = -1;
-          _scaleDuration = const Duration(milliseconds: 200);
-        });
-      },
-      onTapCancel: () => setState(() {
-        _pressedIndex = -1;
-        _scaleDuration = const Duration(milliseconds: 200);
-      }),
       behavior: HitTestBehavior.opaque,
+      onTapDown: (_) {
+        setState(() => _pressedIndex = index);
+        widget.onTap(index);
+      },
+      onTapUp: (_) => setState(() => _pressedIndex = -1),
+      onTapCancel: () => setState(() => _pressedIndex = -1),
       child: Center(
         child: AnimatedScale(
-          scale: isPressed ? 0.90 : 1.0,
-          duration: _scaleDuration,
-          curve: Curves.easeOut,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: isActive ? const Color(0xFF007BFF) : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              border: isActive ? Border.all(color: const Color(0xFF1A1F2B), width: 2.5) : null,
-              boxShadow: isActive && !isPressed
-                  ? [const BoxShadow(color: Color(0xFF1A1F2B), offset: Offset(3, 3), blurRadius: 0)]
-                  : isActive && isPressed
-                      ? [const BoxShadow(color: Color(0xFF1A1F2B), offset: Offset(0, 0), blurRadius: 0)]
-                      : null,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
+          scale: isPressed ? 0.85 : (isActive ? 1.05 : 1.0),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutBack,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(scale: animation, child: child),
+                ),
+                child: Image.asset(
                   iconAsset,
-                  width: 22,
-                  height: 22,
+                  key: ValueKey<bool>(isActive),
+                  width: isActive ? 24 : 22,
+                  height: isActive ? 24 : 22,
                   color: contentColor,
-                  errorBuilder: (_, _, _) => Icon(Icons.circle, size: 22, color: contentColor),
+                  errorBuilder: (_, _, _) => Icon(Icons.circle, size: isActive ? 24 : 22, color: contentColor),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: GoogleFonts.epilogue(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 9,
-                    color: contentColor,
-                    letterSpacing: 0.3,
-                  ),
+              ),
+              const SizedBox(height: 4),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 300),
+                style: GoogleFonts.epilogue(
+                  fontWeight: isActive ? FontWeight.w900 : FontWeight.w700,
+                  fontSize: isActive ? 10 : 9,
+                  color: contentColor,
+                  letterSpacing: 0.3,
                 ),
-              ],
-            ),
+                child: Text(label),
+              ),
+            ],
           ),
         ),
       ),

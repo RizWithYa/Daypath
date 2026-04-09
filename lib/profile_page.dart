@@ -239,6 +239,7 @@ class ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          scrollable: true,
           backgroundColor: Colors.white,
           insetPadding: EdgeInsets.only(
             left: 24,

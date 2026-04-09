@@ -8,15 +8,25 @@ class Habit {
   final String subtitle;
   final IconData icon;
   final Color color;
-  bool isCompleted;
+  final Map<String, bool> completionHistory;
 
   Habit({
     required this.title,
     required this.subtitle,
     required this.icon,
     required this.color,
-    this.isCompleted = false,
-  });
+    Map<String, bool>? completionHistory,
+  }) : completionHistory = completionHistory ?? {};
+
+  bool isCompletedOn(DateTime date) {
+    final key = DateFormat('yyyy-MM-dd').format(date);
+    return completionHistory[key] ?? false;
+  }
+
+  void toggleCompletionOn(DateTime date) {
+    final key = DateFormat('yyyy-MM-dd').format(date);
+    completionHistory[key] = !(completionHistory[key] ?? false);
+  }
 }
 
 class HabitsPage extends StatefulWidget {
@@ -60,13 +70,14 @@ class _HabitsPageState extends State<HabitsPage> {
 
   double get _completionPercentage {
     if (_habits.isEmpty) return 0;
-    int completedCount = _habits.where((h) => h.isCompleted).length;
+    final targetDate = _selectedDate ?? DateTime.now();
+    int completedCount = _habits.where((h) => h.isCompletedOn(targetDate)).length;
     return (completedCount / _habits.length) * 100;
   }
 
   void _toggleHabit(int index) {
     setState(() {
-      _habits[index].isCompleted = !_habits[index].isCompleted;
+      _habits[index].toggleCompletionOn(_selectedDate ?? DateTime.now());
     });
   }
   void _showAddHabitDialog() {
@@ -98,6 +109,7 @@ class _HabitsPageState extends State<HabitsPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
           backgroundColor: const Color(0xFFFFF1E4),
           insetPadding: EdgeInsets.only(
             left: 24,
@@ -341,6 +353,8 @@ class _HabitsPageState extends State<HabitsPage> {
                                              date.month == _selectedDate!.month && 
                                              date.year == _selectedDate!.year;
                         final isOtherMonth = date.month != _selectedMonth.month;
+                        final isCompletedAll = !isOtherMonth && _habits.isNotEmpty &&
+                            _habits.where((h) => h.isCompletedOn(date)).length == _habits.length;
                         return GestureDetector(
                           onTap: () {
                             setState(() {
@@ -352,6 +366,7 @@ class _HabitsPageState extends State<HabitsPage> {
                             isMuted: isOtherMonth,
                             isSelected: isSelected,
                             isToday: isToday,
+                            isCompletedAll: isCompletedAll,
                           ),
                         );
                       },
@@ -384,7 +399,9 @@ class _HabitsPageState extends State<HabitsPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'TODAY\'S PROGRESS',
+                              _selectedDate?.year == DateTime.now().year && _selectedDate?.month == DateTime.now().month && _selectedDate?.day == DateTime.now().day
+                                  ? 'TODAY\'S PROGRESS'
+                                  : 'PROGRESS ON ${DateFormat('MMM dd, yyyy').format(_selectedDate ?? DateTime.now()).toUpperCase()}',
                               style: GoogleFonts.epilogue(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,
@@ -401,13 +418,26 @@ class _HabitsPageState extends State<HabitsPage> {
                             ),
                           ],
                         ),
-                        Text(
-                          '${_completionPercentage.toInt()}%',
-                          style: GoogleFonts.epilogue(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: darkColor,
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${_habits.where((h) => h.isCompletedOn(_selectedDate ?? DateTime.now())).length}/${_habits.length}',
+                              style: GoogleFonts.epilogue(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: darkColor,
+                              ),
+                            ),
+                            Text(
+                              '${_completionPercentage.toInt()}%',
+                              style: GoogleFonts.epilogue(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: darkColor.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -431,7 +461,7 @@ class _HabitsPageState extends State<HabitsPage> {
                             ),
                           ),
                           Row(
-                            children: List.generate(4, (index) => Expanded(
+                            children: List.generate(_habits.length, (index) => Expanded(
                               child: Container(
                                 decoration: BoxDecoration(
                                   border: Border(right: BorderSide(color: darkColor.withOpacity(0.5), width: 1.5)),
@@ -445,7 +475,7 @@ class _HabitsPageState extends State<HabitsPage> {
                     const SizedBox(height: 12),
                     Text(
                       _completionPercentage >= 100 
-                        ? '"MashaAllah, you completed all goals today!"'
+                        ? '"MashaAllah, you completed all goals for this day!"'
                         : '"Every small step brings you closer to Allah."',
                       style: GoogleFonts.epilogue(
                         fontSize: 14,
@@ -486,7 +516,7 @@ class _HabitsPageState extends State<HabitsPage> {
                     subtitle: habit.subtitle,
                     iconIcon: habit.icon,
                     iconBgColor: habit.color,
-                    isChecked: habit.isCompleted,
+                    isChecked: habit.isCompletedOn(_selectedDate ?? DateTime.now()),
                     onToggle: () => _toggleHabit(index),
                   );
                 },
@@ -545,7 +575,7 @@ class _HabitsPageState extends State<HabitsPage> {
     );
   }
 
-  Widget _buildDateItem(String day, {bool isMuted = false, bool isSelected = false, bool isToday = false}) {
+  Widget _buildDateItem(String day, {bool isMuted = false, bool isSelected = false, bool isToday = false, bool isCompletedAll = false}) {
     const darkColor = Color(0xFF1A1F2B);
     if (isMuted) {
       return Center(
@@ -562,8 +592,8 @@ class _HabitsPageState extends State<HabitsPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF007BFF) : (isToday ? const Color(0xFF86EFAC).withOpacity(0.3) : Colors.white),
-        border: Border.all(color: isSelected ? darkColor : (isToday ? const Color(0xFF16A34A) : darkColor), width: 2),
+        color: isSelected ? const Color(0xFF007BFF) : (isCompletedAll ? const Color(0xFF86EFAC) : (isToday ? const Color(0xFFFFB5D8) : Colors.white)),
+        border: Border.all(color: darkColor, width: 2),
       ),
       child: Center(
         child: Text(

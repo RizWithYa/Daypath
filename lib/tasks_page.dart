@@ -186,6 +186,7 @@ class _TasksPageState extends State<TasksPage> {
           builder: (context, setDialogState) {
             const darkColor = Color(0xFF1A1F2B);
             return AlertDialog(
+              scrollable: true,
               backgroundColor: Colors.white,
               surfaceTintColor: Colors.white,
               insetPadding: EdgeInsets.only(
