@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+
+enum TaskCategory { work, personal }
 
 class TodoTask {
   final String id;
@@ -8,6 +11,7 @@ class TodoTask {
   final bool isUrgent;
   bool isDone;
   final Color? leftDeco;
+  final TaskCategory category;
 
   TodoTask({
     required this.id,
@@ -16,66 +20,272 @@ class TodoTask {
     this.isUrgent = false,
     this.isDone = false,
     this.leftDeco,
+    this.category = TaskCategory.personal,
   });
+
+  TodoTask copyWith({
+    String? id,
+    String? title,
+    String? subtitle,
+    bool? isUrgent,
+    bool? isDone,
+    Color? leftDeco,
+    TaskCategory? category,
+  }) {
+    return TodoTask(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      isUrgent: isUrgent ?? this.isUrgent,
+      isDone: isDone ?? this.isDone,
+      leftDeco: leftDeco ?? this.leftDeco,
+      category: category ?? this.category,
+    );
+  }
 }
 
 class TasksPage extends StatefulWidget {
-  const TasksPage({super.key});
+  final void Function(int)? onNavigateToTab;
+  const TasksPage({super.key, this.onNavigateToTab});
 
   @override
   State<TasksPage> createState() => _TasksPageState();
 }
 
 class _TasksPageState extends State<TasksPage> {
+  int _selectedTab = 0; // 0=ALL, 1=WORK, 2=PERSONAL
+  DateTime _selectedDate = DateTime.now();
+
   final List<TodoTask> _tasks = [
     TodoTask(
       id: '1',
-      title: 'Design Review\nPresentation',
+      title: 'Design Review\\nPresentation',
       subtitle: '9:00 AM - 10:30 AM',
       isUrgent: true,
+      category: TaskCategory.work,
     ),
     TodoTask(
       id: '2',
       title: 'Submit Q3 Reports',
       subtitle: 'DUE TODAY',
       isUrgent: true,
+      category: TaskCategory.work,
     ),
     TodoTask(
       id: '3',
       title: 'Pick up groceries',
       subtitle: 'PERSONAL',
       leftDeco: const Color(0xFF007BFF),
+      category: TaskCategory.personal,
     ),
     TodoTask(
       id: '4',
       title: 'Call the plumber',
       subtitle: 'HOME MAINTENANCE',
+      category: TaskCategory.personal,
     ),
     TodoTask(
       id: '5',
       title: 'Morning Workout',
       subtitle: 'HEALTH',
       isDone: true,
+      category: TaskCategory.personal,
     ),
   ];
 
   void _toggleTaskStatus(String id) {
     setState(() {
-      final task = _tasks.firstWhere((t) => t.id == id);
-      task.isDone = !task.isDone;
+      final taskIndex = _tasks.indexWhere((t) => t.id == id);
+      if (taskIndex != -1) {
+        _tasks[taskIndex].isDone = !_tasks[taskIndex].isDone;
+      }
     });
+  }
+
+  void _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF1A1F2B),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1A1F2B),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF1A1F2B),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+  void _addNewTask() {
+    String title = '';
+    String subtitle = '';
+    TaskCategory category = TaskCategory.personal;
+    bool isUrgent = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            const darkColor = Color(0xFF1A1F2B);
+            return AlertDialog(
+              backgroundColor: const Color(0xFFE5F1FF),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0),
+                side: const BorderSide(color: darkColor, width: 3),
+              ),
+              title: Text(
+                'ADD NEW TASK',
+                style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, color: darkColor),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('TITLE', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      onChanged: (value) => title = value,
+                      decoration: const InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2)),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('SUBTITLE', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      onChanged: (value) => subtitle = value,
+                      decoration: const InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2)),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('CATEGORY', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        ChoiceChip(
+                          label: const Text('WORK'),
+                          selected: category == TaskCategory.work,
+                          onSelected: (selected) {
+                            if (selected) setDialogState(() => category = TaskCategory.work);
+                          },
+                          selectedColor: const Color(0xFF007BFF),
+                          labelStyle: TextStyle(color: category == TaskCategory.work ? Colors.white : darkColor),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('PERSONAL'),
+                          selected: category == TaskCategory.personal,
+                          onSelected: (selected) {
+                            if (selected) setDialogState(() => category = TaskCategory.personal);
+                          },
+                          selectedColor: const Color(0xFF007BFF),
+                          labelStyle: TextStyle(color: category == TaskCategory.personal ? Colors.white : darkColor),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: isUrgent,
+                          onChanged: (value) => setDialogState(() => isUrgent = value ?? false),
+                          activeColor: const Color(0xFFFF649C),
+                        ),
+                        Text('MARK AS URGENT', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('CANCEL', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
+                ),
+                _NeuBoxCustom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  backgroundColor: const Color(0xFF00FF7F),
+                  child: InkWell(
+                    onTap: () {
+                      if (title.isNotEmpty) {
+                        setState(() {
+                          _tasks.add(TodoTask(
+                            id: DateTime.now().millisecondsSinceEpoch.toString(),
+                            title: title,
+                            subtitle: subtitle,
+                            isUrgent: isUrgent,
+                            category: category,
+                          ));
+                        });
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: Text('CONFIRM', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     const darkColor = Color(0xFF1A1F2B);
     
-    final urgentTasks = _tasks.where((t) => t.isUrgent && !t.isDone).toList();
-    final pendingTasks = _tasks.where((t) => !t.isUrgent && !t.isDone).toList();
-    final doneTasks = _tasks.where((t) => t.isDone).toList();
+    List<TodoTask> filteredByTab = _tasks;
+    if (_selectedTab == 1) {
+      filteredByTab = _tasks.where((t) => t.category == TaskCategory.work).toList();
+    } else if (_selectedTab == 2) {
+      filteredByTab = _tasks.where((t) => t.category == TaskCategory.personal).toList();
+    }
+
+    final urgentTasks = filteredByTab.where((t) => t.isUrgent && !t.isDone).toList();
+    final pendingTasks = filteredByTab.where((t) => !t.isUrgent && !t.isDone).toList();
+    final doneTasks = filteredByTab.where((t) => t.isDone).toList();
+
+    int workCount = _tasks.where((t) => t.category == TaskCategory.work).length;
+    int personalCount = _tasks.where((t) => t.category == TaskCategory.personal).length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFE5F1FF), // Light blue background
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addNewTask,
+        backgroundColor: const Color(0xFFFFBA24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(0),
+          side: const BorderSide(color: darkColor, width: 3),
+        ),
+        child: const Icon(Icons.add, color: darkColor, size: 32),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -106,7 +316,7 @@ class _TasksPageState extends State<TasksPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'MONDAY, OCT 24, 2023',
+                        DateFormat('EEEE, MMMM dd, yyyy').format(_selectedDate).toUpperCase(),
                         style: GoogleFonts.epilogue(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
@@ -115,10 +325,13 @@ class _TasksPageState extends State<TasksPage> {
                       ),
                     ],
                   ),
-                  _NeuBoxCustom(
-                    padding: const EdgeInsets.all(12),
-                    backgroundColor: const Color(0xFFFFBA24), // Yellow
-                    child: const Icon(Icons.calendar_month, color: darkColor, size: 28),
+                  GestureDetector(
+                    onTap: _selectDate,
+                    child: _NeuBoxCustom(
+                      padding: const EdgeInsets.all(12),
+                      backgroundColor: const Color(0xFFFFBA24), // Yellow
+                      child: const Icon(Icons.calendar_month, color: darkColor, size: 28),
+                    ),
                   ),
                 ],
               ),
@@ -128,88 +341,164 @@ class _TasksPageState extends State<TasksPage> {
               Row(
                 children: [
                   Expanded(
-                    child: _TabItem(title: 'ALL (${_tasks.length})', isActive: true, color: const Color(0xFF007BFF)),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedTab = 0),
+                      child: _TabItem(
+                        title: 'ALL (${_tasks.length})',
+                        isActive: _selectedTab == 0,
+                        color: const Color(0xFF007BFF),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 8),
-                  const Expanded(
-                    child: _TabItem(title: 'WORK', isActive: false),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedTab = 1),
+                      child: _TabItem(
+                        title: 'WORK ($workCount)',
+                        isActive: _selectedTab == 1,
+                        color: const Color(0xFF00FF7F),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 8),
-                  const Expanded(
-                    child: _TabItem(title: 'PERSONAL', isActive: false),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedTab = 2),
+                      child: _TabItem(
+                        title: 'PERSONAL ($personalCount)',
+                        isActive: _selectedTab == 2,
+                        color: const Color(0xFFFF649C),
+                      ),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 32),
 
               // URGENT SECTION
-              if (urgentTasks.isNotEmpty) ...[
-                const _CategoryBadge(text: 'URGENT', color: Color(0xFFFF649C)), // Pink
-                const SizedBox(height: 12),
-                ...urgentTasks.map((task) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _TaskItem(
-                    title: task.title,
-                    subtitle: task.subtitle,
-                    iconBgColor: const Color(0xFFFFBA24), // Yellow
-                    iconIcon: Icons.priority_high,
-                    onToggle: () => _toggleTaskStatus(task.id),
-                  ),
-                )),
-                const SizedBox(height: 20),
-              ],
+              _buildTaskSection('URGENT', urgentTasks, const Color(0xFFFF649C)),
+              const SizedBox(height: 20),
 
               // PENDING SECTION
-              const _CategoryBadge(text: 'PENDING', color: Color(0xFF00FF7F)), // Green
-              const SizedBox(height: 12),
-              if (pendingTasks.isEmpty)
-                Text(
-                  'No pending tasks',
-                  style: GoogleFonts.epilogue(color: Colors.grey, fontWeight: FontWeight.bold),
-                )
-              else
-                ...pendingTasks.map((task) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _TaskItem(
-                    title: task.title,
-                    subtitle: task.subtitle,
-                    iconBgColor: Colors.white,
-                    isCheckbox: true,
-                    leftDeco: task.leftDeco,
-                    onToggle: () => _toggleTaskStatus(task.id),
-                  ),
-                )),
-
+              _buildTaskSection('PENDING', pendingTasks, const Color(0xFF00FF7F)),
               const SizedBox(height: 32),
 
               // DONE SECTION
-              const _CategoryBadge(text: 'DONE', color: Color(0xFFD3D8E0)), // Greyish
-              const SizedBox(height: 12),
-              if (doneTasks.isEmpty)
-                Text(
-                  'No completed tasks',
-                  style: GoogleFonts.epilogue(color: Colors.grey, fontWeight: FontWeight.bold),
-                )
-              else
-                ...doneTasks.map((task) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _TaskItem(
-                    title: task.title,
-                    subtitle: task.subtitle,
-                    iconBgColor: const Color(0xFF69B4FF),
-                    iconIcon: Icons.check,
-                    isDone: true,
-                    isCheckbox: true,
-                    checked: true,
-                    onToggle: () => _toggleTaskStatus(task.id),
-                  ),
-                )),
+              _buildTaskSection('DONE', doneTasks, const Color(0xFFD3D8E0), isDoneSection: true),
               
               const SizedBox(height: 120), // Padding for nav bar
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTaskSection(String title, List<TodoTask> tasks, Color badgeColor, {bool isDoneSection = false}) {
+    return DragTarget<TodoTask>(
+      onAccept: (task) {
+        setState(() {
+          final index = _tasks.indexWhere((t) => t.id == task.id);
+          if (index != -1) {
+            if (isDoneSection) {
+              _tasks[index] = _tasks[index].copyWith(isDone: true);
+            } else if (title == 'URGENT') {
+              _tasks[index] = _tasks[index].copyWith(isUrgent: true, isDone: false);
+            } else {
+              _tasks[index] = _tasks[index].copyWith(isUrgent: false, isDone: false);
+            }
+          }
+        });
+      },
+      builder: (context, candidateData, rejectedData) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _CategoryBadge(text: title, color: badgeColor),
+            const SizedBox(height: 12),
+            if (tasks.isEmpty)
+              Text(
+                'No tasks here',
+                style: GoogleFonts.epilogue(color: Colors.grey, fontWeight: FontWeight.bold),
+              )
+            else
+              ...tasks.map((task) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: LongPressDraggable<TodoTask>(
+                  data: task,
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width - 40,
+                      child: _TaskItem(
+                        title: task.title,
+                        subtitle: task.subtitle,
+                        iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : Colors.white,
+                        onToggle: () {},
+                        isCheckbox: true,
+                        checked: task.isDone,
+                        isDone: task.isDone,
+                        leftDeco: task.leftDeco,
+                        iconIcon: task.isUrgent ? Icons.priority_high : null,
+                      ),
+                    ),
+                  ),
+                  childWhenDragging: Opacity(
+                    opacity: 0.5,
+                    child: _TaskItem(
+                      title: task.title,
+                      subtitle: task.subtitle,
+                      iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : Colors.white,
+                      onToggle: () {},
+                      isCheckbox: true,
+                      checked: task.isDone,
+                      isDone: task.isDone,
+                      leftDeco: task.leftDeco,
+                      iconIcon: task.isUrgent ? Icons.priority_high : null,
+                    ),
+                  ),
+                  child: DragTarget<TodoTask>(
+                    onAccept: (droppedTask) {
+                      if (droppedTask.id != task.id) {
+                        setState(() {
+                          final oldIndex = _tasks.indexWhere((t) => t.id == droppedTask.id);
+                          
+                          TodoTask updatedTask = droppedTask;
+                          if (isDoneSection) {
+                            updatedTask = updatedTask.copyWith(isDone: true);
+                          } else if (title == 'URGENT') {
+                            updatedTask = updatedTask.copyWith(isUrgent: true, isDone: false);
+                          } else {
+                            updatedTask = updatedTask.copyWith(isUrgent: false, isDone: false);
+                          }
+                          
+                          _tasks.removeAt(oldIndex);
+                          // Re-calculate new index after removal
+                          final adjustedNewIndex = _tasks.indexWhere((t) => t.id == task.id);
+                          _tasks.insert(adjustedNewIndex, updatedTask);
+                        });
+                      }
+                    },
+                    builder: (context, candidateData, rejectedData) {
+                      return _TaskItem(
+                        title: task.title,
+                        subtitle: task.subtitle,
+                        iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : (isDoneSection ? const Color(0xFF69B4FF) : Colors.white),
+                        onToggle: () => _toggleTaskStatus(task.id),
+                        isCheckbox: true,
+                        checked: task.isDone,
+                        isDone: task.isDone,
+                        leftDeco: task.leftDeco,
+                        iconIcon: task.isUrgent ? Icons.priority_high : (isDoneSection ? Icons.check : null),
+                      );
+                    },
+                  ),
+                ),
+              )),
+          ],
+        );
+      },
     );
   }
 }
@@ -262,8 +551,8 @@ class _TabItem extends StatelessWidget {
           title,
           style: GoogleFonts.epilogue(
             fontWeight: FontWeight.w800,
-            fontSize: 13,
-            color: isActive && color != null ? Colors.white : darkColor,
+            fontSize: 11, // Slightly smaller to fit counts
+            color: isActive ? (color == const Color(0xFF00FF7F) ? darkColor : Colors.white) : darkColor,
           ),
         ),
       ),
@@ -329,7 +618,7 @@ class _TaskItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
+                        title.replaceAll('\\n', '\n'),
                         style: GoogleFonts.epilogue(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -377,8 +666,6 @@ class _TaskItem extends StatelessWidget {
   }
 }
 
-
-// Internal reusable neu box component for this page
 class _NeuBoxCustom extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;

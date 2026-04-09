@@ -55,12 +55,13 @@ class _MainPageState extends State<MainPage> {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          const _HomeView(),
-          const TasksPage(),
-          const HabitsPage(),
-          const ProfilePage(),
+          _HomeView(onNavigateToTab: _onNavTapped),
+          TasksPage(onNavigateToTab: _onNavTapped),
+          HabitsPage(onNavigateToTab: _onNavTapped),
+          ProfilePage(onNavigateToTab: _onNavTapped),
         ],
       ),
+
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
         onTap: _onNavTapped,
@@ -70,7 +71,8 @@ class _MainPageState extends State<MainPage> {
 }
 
 class _HomeView extends StatefulWidget {
-  const _HomeView();
+  final Function(int)? onNavigateToTab;
+  const _HomeView({this.onNavigateToTab});
 
   @override
   State<_HomeView> createState() => _HomeViewState();
@@ -82,6 +84,7 @@ class _HomeViewState extends State<_HomeView> {
   String _countdown = '00:00:00';
   String _locationName = 'Searching location...';
   bool _isLoading = false;
+  Map<String, bool> _mutedPrayers = {};
 
   Timer? _timer;
 
@@ -317,6 +320,63 @@ class _HomeViewState extends State<_HomeView> {
     return '$hour12:$minStr $ampm';
   }
 
+  void _showMenuModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+          border: Border(
+            top: BorderSide(color: Color(0xFF1A1F2B), width: 3.5),
+            left: BorderSide(color: Color(0xFF1A1F2B), width: 3.5),
+            right: BorderSide(color: Color(0xFF1A1F2B), width: 3.5),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.home, color: Color(0xFF1A1F2B)),
+              title: Text('HOME', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
+              onTap: () {
+                Navigator.pop(context);
+                widget.onNavigateToTab?.call(0);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.task_alt, color: Color(0xFF1A1F2B)),
+              title: Text('TASKS', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
+              onTap: () {
+                Navigator.pop(context);
+                widget.onNavigateToTab?.call(1);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.favorite_border, color: Color(0xFF1A1F2B)),
+              title: Text('HABITS', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
+              onTap: () {
+                Navigator.pop(context);
+                widget.onNavigateToTab?.call(2);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline, color: Color(0xFF1A1F2B)),
+              title: Text('PROFILE', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
+              onTap: () {
+                Navigator.pop(context);
+                widget.onNavigateToTab?.call(3);
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const darkColor = Color(0xFF1A1F2B);
@@ -332,11 +392,12 @@ class _HomeViewState extends State<_HomeView> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 NeuButton(
-                  onTap: () {},
+                  onTap: _showMenuModal,
                   color: Colors.white,
                   padding: const EdgeInsets.all(8),
                   child: Image.asset('icon/main_icon/3_Menubar.png', width: 24, height: 24),
                 ),
+
                 Text(
                   'MUSLIM DAILY',
                   style: GoogleFonts.epilogue(
@@ -347,11 +408,12 @@ class _HomeViewState extends State<_HomeView> {
                   ),
                 ),
                 NeuButton(
-                  onTap: () {},
+                  onTap: () => widget.onNavigateToTab?.call(3),
                   color: const Color(0xFFFFBA24), // Yellow
                   padding: const EdgeInsets.all(8),
                   child: Image.asset('icon/main_icon/User.png', width: 24, height: 24),
                 ),
+
               ],
             ),
             const SizedBox(height: 30),
@@ -414,7 +476,15 @@ class _HomeViewState extends State<_HomeView> {
                       SizedBox(
                         width: double.infinity,
                         child: NeuButton(
-                          onTap: () {},
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Reminder set for $_nextPrayerName!'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: const Color(0xFF007BFF),
+                              ),
+                            );
+                          },
                           color: const Color(0xFF007BFF),
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           borderRadius: 12,
@@ -430,6 +500,7 @@ class _HomeViewState extends State<_HomeView> {
                           ),
                         ),
                       ),
+
                     ],
                   ),
                 ),
@@ -482,14 +553,15 @@ class _HomeViewState extends State<_HomeView> {
               )
             else
               Column(
-                children: [
+children: [
                   ScheduleItem(
                     title: 'Fajr',
                     time: _getTime12Hour(_prayerTimes!['Fajr']!),
                     iconAsset: 'icon/main_icon/Fajr.png',
                     iconBgColor: const Color(0xFFFF649C),
                     isActive: _nextPrayerName == 'Fajr',
-                    isMuted: true,
+                    isMuted: _mutedPrayers['Fajr'] ?? false,
+                    onNotificationTap: () => setState(() => _mutedPrayers['Fajr'] = !(_mutedPrayers['Fajr'] ?? false)),
                   ),
                   const SizedBox(height: 12),
                   ScheduleItem(
@@ -498,7 +570,8 @@ class _HomeViewState extends State<_HomeView> {
                     iconAsset: 'icon/main_icon/Dhuhr.png',
                     iconBgColor: Colors.white,
                     isActive: _nextPrayerName == 'Dhuhr',
-                    isMuted: false,
+                    isMuted: _mutedPrayers['Dhuhr'] ?? false,
+                    onNotificationTap: () => setState(() => _mutedPrayers['Dhuhr'] = !(_mutedPrayers['Dhuhr'] ?? false)),
                   ),
                   const SizedBox(height: 12),
                   ScheduleItem(
@@ -507,7 +580,8 @@ class _HomeViewState extends State<_HomeView> {
                     iconAsset: 'icon/main_icon/Asr.png',
                     iconBgColor: const Color(0xFFCCE4FF),
                     isActive: _nextPrayerName == 'Asr',
-                    isMuted: false,
+                    isMuted: _mutedPrayers['Asr'] ?? false,
+                    onNotificationTap: () => setState(() => _mutedPrayers['Asr'] = !(_mutedPrayers['Asr'] ?? false)),
                   ),
                   const SizedBox(height: 12),
                   ScheduleItem(
@@ -516,7 +590,8 @@ class _HomeViewState extends State<_HomeView> {
                     iconAsset: 'icon/main_icon/Maghrib.png',
                     iconBgColor: darkColor,
                     isActive: _nextPrayerName == 'Maghrib',
-                    isMuted: true,
+                    isMuted: _mutedPrayers['Maghrib'] ?? false,
+                    onNotificationTap: () => setState(() => _mutedPrayers['Maghrib'] = !(_mutedPrayers['Maghrib'] ?? false)),
                     iconColor: Colors.white,
                   ),
                   const SizedBox(height: 12),
@@ -526,10 +601,12 @@ class _HomeViewState extends State<_HomeView> {
                     iconAsset: 'icon/main_icon/Maghrib.png', // Fallback icon since Isha.png was not provided
                     iconBgColor: const Color(0xFF1A1F2B),
                     isActive: _nextPrayerName == 'Isha',
-                    isMuted: false,
+                    isMuted: _mutedPrayers['Isha'] ?? false,
+                    onNotificationTap: () => setState(() => _mutedPrayers['Isha'] = !(_mutedPrayers['Isha'] ?? false)),
                     iconColor: Colors.white,
                   ),
                 ],
+
               ),
 
             const SizedBox(height: 30),
@@ -675,6 +752,7 @@ class ScheduleItem extends StatelessWidget {
   final bool isActive;
   final bool isMuted;
   final Color? iconColor;
+  final VoidCallback? onNotificationTap;
 
   const ScheduleItem({
     super.key,
@@ -685,7 +763,9 @@ class ScheduleItem extends StatelessWidget {
     required this.isActive,
     required this.isMuted,
     this.iconColor,
+    this.onNotificationTap,
   });
+
 
   @override
   Widget build(BuildContext context) {
@@ -734,10 +814,13 @@ class ScheduleItem extends StatelessWidget {
               ],
             ),
           ),
-          Icon(
-            isMuted ? Icons.notifications_off_outlined : Icons.notifications_active_outlined,
-            color: isMuted ? Colors.grey[400] : darkColor,
-            size: 28,
+          GestureDetector(
+            onTap: onNotificationTap,
+            child: Icon(
+              isMuted ? Icons.notifications_off_outlined : Icons.notifications_active_outlined,
+              color: isMuted ? Colors.grey[400] : darkColor,
+              size: 28,
+            ),
           ),
         ],
       ),
@@ -759,7 +842,7 @@ class CustomBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Container(
-        height: 80,
+        height: 70,
         margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         child: Stack(
           clipBehavior: Clip.none,
@@ -769,28 +852,13 @@ class CustomBottomNav extends StatelessWidget {
               child: NeuBox(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Expanded(child: _buildNavItem(0, 'Home', 'icon/main_icon/Home_navbar.png')),
                     Expanded(child: _buildNavItem(1, 'Tasks', 'icon/main_icon/Task_navbar.png')),
-                    const SizedBox(width: 48), // space for center FAB
                     Expanded(child: _buildNavItem(2, 'Habits', 'icon/main_icon/Habits_navbar.png')),
                     Expanded(child: _buildNavItem(3, 'Profile', 'icon/main_icon/Profile_navbar.png')),
                   ],
-                ),
-              ),
-            ),
-            Positioned(
-              top: -20,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: NeuButton(
-                  onTap: () {},
-                  color: const Color(0xFF007BFF),
-                  padding: const EdgeInsets.all(12),
-                  borderRadius: 4, // Square sharp look
-                  child: const Icon(Icons.add, color: Colors.white, size: 32),
                 ),
               ),
             ),

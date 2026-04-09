@@ -19,13 +19,17 @@ class Habit {
 }
 
 class HabitsPage extends StatefulWidget {
-  const HabitsPage({super.key});
+  final void Function(int)? onNavigateToTab;
+  const HabitsPage({super.key, this.onNavigateToTab});
 
   @override
   State<HabitsPage> createState() => _HabitsPageState();
 }
 
 class _HabitsPageState extends State<HabitsPage> {
+  DateTime _selectedMonth = DateTime.now();
+  DateTime? _selectedDate = DateTime.now();
+
   final List<Habit> _habits = [
     Habit(
       title: 'TILAWAH QURAN',
@@ -64,12 +68,150 @@ class _HabitsPageState extends State<HabitsPage> {
       _habits[index].isCompleted = !_habits[index].isCompleted;
     });
   }
+  void _showAddHabitDialog() {
+    final titleController = TextEditingController();
+    final subtitleController = TextEditingController();
+    IconData selectedIcon = Icons.star;
+    Color selectedColor = const Color(0xFFE4C1F9);
+
+    final List<IconData> presetIcons = [
+      Icons.menu_book,
+      Icons.wb_sunny_outlined,
+      Icons.mosque_outlined,
+      Icons.favorite_border,
+      Icons.water_drop_outlined,
+      Icons.self_improvement,
+      Icons.fitness_center,
+      Icons.edit_note,
+    ];
+
+    final List<Color> presetColors = [
+      const Color(0xFFE4C1F9),
+      const Color(0xFFFFD19A),
+      const Color(0xFFB5D8FF),
+      const Color(0xFFFFB5D8),
+      const Color(0xFF86EFAC),
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFFFFF1E4),
+          shape: const RoundedRectangleBorder(side: BorderSide(color: Color(0xFF1A1F2B), width: 3)),
+          title: Text(
+            'ADD NEW HABIT',
+            style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, color: const Color(0xFF1A1F2B)),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTextField('TITLE', titleController),
+                const SizedBox(height: 16),
+                _buildTextField('SUBTITLE', subtitleController),
+                const SizedBox(height: 16),
+                Text('SELECT ICON', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 14)),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: presetIcons.map((icon) => GestureDetector(
+                      onTap: () => setDialogState(() => selectedIcon = icon),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: selectedIcon == icon ? const Color(0xFF007BFF) : Colors.white,
+                          border: Border.all(color: const Color(0xFF1A1F2B), width: 2),
+                        ),
+                        child: Icon(icon, color: selectedIcon == icon ? Colors.white : const Color(0xFF1A1F2B)),
+                      ),
+                    )).toList(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('SELECT COLOR', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 14)),
+                const SizedBox(height: 8),
+                Row(
+                  children: presetColors.map((color) => GestureDetector(
+                    onTap: () => setDialogState(() => selectedColor = color),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF1A1F2B),
+                          width: selectedColor == color ? 3 : 1.5,
+                        ),
+                      ),
+                    ),
+                  )).toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('CANCEL', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: Colors.grey)),
+            ),
+            GestureDetector(
+              onTap: () {
+                if (titleController.text.isNotEmpty) {
+                  setState(() {
+                    _habits.add(Habit(
+                      title: titleController.text.toUpperCase(),
+                      subtitle: subtitleController.text,
+                      icon: selectedIcon,
+                      color: selectedColor,
+                    ));
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: _NeuBoxCustom(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                backgroundColor: const Color(0xFF86EFAC),
+                borderWidth: 2,
+                offset: const Offset(3, 3),
+                child: Text('ADD', style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, color: const Color(0xFF1A1F2B))),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          style: GoogleFonts.epilogue(fontWeight: FontWeight.w600),
+          decoration: const InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF1A1F2B), width: 2), borderRadius: BorderRadius.zero),
+            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF007BFF), width: 2), borderRadius: BorderRadius.zero),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     const darkColor = Color(0xFF1A1F2B);
-    final now = DateTime.now();
-    final monthName = DateFormat('MMMM yyyy').format(now).toUpperCase();
+    final monthName = DateFormat('MMMM yyyy').format(_selectedMonth).toUpperCase();
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF1E4),
@@ -83,10 +225,13 @@ class _HabitsPageState extends State<HabitsPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _NeuBoxCustom(
-                    padding: const EdgeInsets.all(8),
-                    backgroundColor: const Color(0xFF007BFF),
-                    child: const Icon(Icons.calendar_month, color: Colors.white, size: 28),
+                  GestureDetector(
+                    onTap: () => widget.onNavigateToTab?.call(1),
+                    child: _NeuBoxCustom(
+                      padding: const EdgeInsets.all(8),
+                      backgroundColor: const Color(0xFF007BFF),
+                      child: const Icon(Icons.calendar_month, color: Colors.white, size: 28),
+                    ),
                   ),
                   Text(
                     'DAILY.IBADAH',
@@ -97,10 +242,13 @@ class _HabitsPageState extends State<HabitsPage> {
                       letterSpacing: -1,
                     ),
                   ),
-                  _NeuBoxCustom(
-                    padding: const EdgeInsets.all(8),
-                    backgroundColor: const Color(0xFFFFBA24),
-                    child: const Icon(Icons.person_outline, color: darkColor, size: 28),
+                  GestureDetector(
+                    onTap: () => widget.onNavigateToTab?.call(3),
+                    child: _NeuBoxCustom(
+                      padding: const EdgeInsets.all(8),
+                      backgroundColor: const Color(0xFFFFBA24),
+                      child: const Icon(Icons.person_outline, color: darkColor, size: 28),
+                    ),
                   ),
                 ],
               ),
@@ -114,12 +262,19 @@ class _HabitsPageState extends State<HabitsPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _NeuBoxCustom(
-                          padding: const EdgeInsets.all(4),
-                          backgroundColor: const Color(0xFFFF649C),
-                          borderWidth: 2,
-                          offset: const Offset(3, 3),
-                          child: const Icon(Icons.chevron_left, color: darkColor, size: 20),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1);
+                            });
+                          },
+                          child: _NeuBoxCustom(
+                            padding: const EdgeInsets.all(4),
+                            backgroundColor: const Color(0xFFFF649C),
+                            borderWidth: 2,
+                            offset: const Offset(3, 3),
+                            child: const Icon(Icons.chevron_left, color: darkColor, size: 20),
+                          ),
                         ),
                         Text(
                           monthName,
@@ -129,12 +284,19 @@ class _HabitsPageState extends State<HabitsPage> {
                             color: darkColor,
                           ),
                         ),
-                        _NeuBoxCustom(
-                          padding: const EdgeInsets.all(4),
-                          backgroundColor: const Color(0xFFFF649C),
-                          borderWidth: 2,
-                          offset: const Offset(3, 3),
-                          child: const Icon(Icons.chevron_right, color: darkColor, size: 20),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1);
+                            });
+                          },
+                          child: _NeuBoxCustom(
+                            padding: const EdgeInsets.all(4),
+                            backgroundColor: const Color(0xFFFF649C),
+                            borderWidth: 2,
+                            offset: const Offset(3, 3),
+                            child: const Icon(Icons.chevron_right, color: darkColor, size: 20),
+                          ),
                         ),
                       ],
                     ),
@@ -152,14 +314,40 @@ class _HabitsPageState extends State<HabitsPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: List.generate(7, (index) {
-                        final date = now.subtract(Duration(days: now.weekday % 7 - index));
-                        final isToday = date.day == now.day && date.month == now.month;
-                        final isOtherMonth = date.month != now.month;
-                        return _buildDateItem(date.day.toString(), isMuted: isOtherMonth, isSelected: isToday);
-                      }),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 7,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                      ),
+                      itemCount: 42,
+                      itemBuilder: (context, index) {
+                        final daysInMonth = _getDaysInMonth(_selectedMonth);
+                        final date = daysInMonth[index];
+                        final isToday = date.day == DateTime.now().day && 
+                                          date.month == DateTime.now().month && 
+                                          date.year == DateTime.now().year;
+                        final isSelected = _selectedDate != null && 
+                                             date.day == _selectedDate!.day && 
+                                             date.month == _selectedDate!.month && 
+                                             date.year == _selectedDate!.year;
+                        final isOtherMonth = date.month != _selectedMonth.month;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedDate = date;
+                            });
+                          },
+                          child: _buildDateItem(
+                            date.day.toString(),
+                            isMuted: isOtherMonth,
+                            isSelected: isSelected,
+                            isToday: isToday,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -185,13 +373,26 @@ class _HabitsPageState extends State<HabitsPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _completionPercentage >= 100 ? 'EXCELLENT!' : 'KEEP IT UP!',
-                          style: GoogleFonts.epilogue(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: darkColor,
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'TODAY\'S PROGRESS',
+                              style: GoogleFonts.epilogue(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: darkColor.withOpacity(0.6),
+                              ),
+                            ),
+                            Text(
+                              _completionPercentage >= 100 ? 'EXCELLENT!' : 'KEEP IT UP!',
+                              style: GoogleFonts.epilogue(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: darkColor,
+                              ),
+                            ),
+                          ],
                         ),
                         Text(
                           '${_completionPercentage.toInt()}%',
@@ -245,6 +446,21 @@ class _HabitsPageState extends State<HabitsPage> {
                         color: darkColor,
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(Icons.info_outline, size: 14, color: Color(0xFF1A1F2B)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Habits reset daily at midnight',
+                          style: GoogleFonts.epilogue(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: darkColor.withOpacity(0.6),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -268,6 +484,29 @@ class _HabitsPageState extends State<HabitsPage> {
                   );
                 },
               ),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: _showAddHabitDialog,
+                child: _NeuBoxCustom(
+                  backgroundColor: const Color(0xFFB5D8FF),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.add_circle_outline, color: darkColor),
+                      const SizedBox(width: 8),
+                      Text(
+                        'ADD NEW HABIT',
+                        style: GoogleFonts.epilogue(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: darkColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 120),
             ],
@@ -277,9 +516,15 @@ class _HabitsPageState extends State<HabitsPage> {
     );
   }
 
+  List<DateTime> _getDaysInMonth(DateTime month) {
+    final firstDayOfMonth = DateTime(month.year, month.month, 1);
+    final firstDayOfCalendar = firstDayOfMonth.subtract(Duration(days: firstDayOfMonth.weekday % 7));
+    return List.generate(42, (index) => firstDayOfCalendar.add(Duration(days: index)));
+  }
+
   Widget _buildDayHeader(String text) {
     return SizedBox(
-      width: 36,
+      width: 36, // Keep consistent with date item size if needed, but GridView handles it now
       child: Center(
         child: Text(
           text,
@@ -293,37 +538,31 @@ class _HabitsPageState extends State<HabitsPage> {
     );
   }
 
-  Widget _buildDateItem(String day, {bool isMuted = false, bool isSelected = false}) {
+  Widget _buildDateItem(String day, {bool isMuted = false, bool isSelected = false, bool isToday = false}) {
     const darkColor = Color(0xFF1A1F2B);
     if (isMuted) {
-      return SizedBox(
-        width: 36,
-        height: 36,
-        child: Center(
-          child: Text(
-            day,
-            style: GoogleFonts.epilogue(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[400],
-            ),
+      return Center(
+        child: Text(
+          day,
+          style: GoogleFonts.epilogue(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[400],
           ),
         ),
       );
     }
 
     return Container(
-      width: 36,
-      height: 36,
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF007BFF) : Colors.white,
-        border: Border.all(color: darkColor, width: 2),
+        color: isSelected ? const Color(0xFF007BFF) : (isToday ? const Color(0xFF86EFAC).withOpacity(0.3) : Colors.white),
+        border: Border.all(color: isSelected ? darkColor : (isToday ? const Color(0xFF16A34A) : darkColor), width: 2),
       ),
       child: Center(
         child: Text(
           day,
           style: GoogleFonts.epilogue(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w800,
             color: isSelected ? Colors.white : darkColor,
           ),

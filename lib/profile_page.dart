@@ -1,11 +1,14 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final void Function(int)? onNavigateToTab;
+  const ProfilePage({super.key, this.onNavigateToTab});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -16,6 +19,11 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _imagePath;
   bool _isLoading = true;
   final ImagePicker _picker = ImagePicker();
+
+  int _tasksDone = 0;
+  int _streakDays = 0;
+  DateTime? _memberSince;
+  List<int> _weeklyProgress = [];
 
   @override
   void initState() {
@@ -28,7 +36,173 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _userName = prefs.getString('user_name') ?? 'ALEX RIVERA';
       _imagePath = prefs.getString('profile_image_path');
+      _tasksDone = prefs.getInt('tasks_done') ?? 0;
+      _streakDays = prefs.getInt('streak_days') ?? 0;
+      
+      String? memberSinceStr = prefs.getString('member_since');
+      if (memberSinceStr != null) {
+        try {
+          _memberSince = DateTime.parse(memberSinceStr);
+        } catch (e) {
+          _memberSince = DateTime.now();
+          prefs.setString('member_since', _memberSince!.toIso8601String());
+        }
+      } else {
+        _memberSince = DateTime.now();
+        prefs.setString('member_since', _memberSince!.toIso8601String());
+      }
+
+      String? weeklyProgressStr = prefs.getString('weekly_progress');
+      if (weeklyProgressStr != null) {
+        try {
+          _weeklyProgress = List<int>.from(jsonDecode(weeklyProgressStr));
+        } catch (e) {
+          _weeklyProgress = [3, 5, 2, 7, 4, 6, 1];
+        }
+      } else {
+        _weeklyProgress = [3, 5, 2, 7, 4, 6, 1];
+        prefs.setString('weekly_progress', jsonEncode(_weeklyProgress));
+      }
+
       _isLoading = false;
+    });
+  }
+
+  Future<void> _resetProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    await _loadProfileData();
+  }
+
+  void _showSettingsSheet() {
+    const darkColor = Color(0xFF1A1F2B);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+            border: Border(
+              top: BorderSide(color: darkColor, width: 3),
+              left: BorderSide(color: darkColor, width: 3),
+              right: BorderSide(color: darkColor, width: 3),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'SETTINGS',
+                style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, fontSize: 20, color: darkColor),
+              ),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  _showResetConfirmation();
+                },
+                child: _NeuBoxCustom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  backgroundColor: const Color(0xFFFF649C),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.refresh, color: darkColor),
+                      const SizedBox(width: 12),
+                      Text(
+                        'RESET PROFILE',
+                        style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _NeuBoxCustom(
+                padding: const EdgeInsets.all(16),
+                backgroundColor: const Color(0xFFE8EDFF),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ABOUT',
+                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, fontSize: 14, color: darkColor),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'App Name: Todo Neubrutalism',
+                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w600, fontSize: 12, color: darkColor),
+                    ),
+                    Text(
+                      'Version: 1.0.0',
+                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w600, fontSize: 12, color: darkColor),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showResetConfirmation() {
+    const darkColor = Color(0xFF1A1F2B);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(0),
+          side: const BorderSide(color: darkColor, width: 3),
+        ),
+        title: Text('RESET ALL DATA?', style: GoogleFonts.epilogue(fontWeight: FontWeight.w900)),
+        content: Text('This will clear all your progress and settings.', style: GoogleFonts.epilogue(fontWeight: FontWeight.w600)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('CANCEL', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF649C),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0), side: const BorderSide(color: darkColor, width: 2)),
+            ),
+            onPressed: () {
+              _resetProfile();
+              Navigator.pop(context);
+            },
+            child: Text('RESET', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _incrementTasksDone() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _tasksDone++;
+      prefs.setInt('tasks_done', _tasksDone);
+      
+      // Update weekly progress (last day)
+      if (_weeklyProgress.isNotEmpty) {
+        _weeklyProgress[_weeklyProgress.length - 1]++;
+        prefs.setString('weekly_progress', jsonEncode(_weeklyProgress));
+      }
+    });
+  }
+
+  Future<void> _incrementStreak() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _streakDays++;
+      prefs.setInt('streak_days', _streakDays);
     });
   }
 
@@ -211,11 +385,15 @@ class _ProfilePageState extends State<ProfilePage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _NeuBoxCustom(
-                    padding: const EdgeInsets.all(8),
-                    backgroundColor: Colors.white,
-                    child: const Icon(Icons.arrow_back, color: darkColor, size: 28),
+                  GestureDetector(
+                    onTap: () => widget.onNavigateToTab?.call(0),
+                    child: _NeuBoxCustom(
+                      padding: const EdgeInsets.all(8),
+                      backgroundColor: Colors.white,
+                      child: const Icon(Icons.arrow_back, color: darkColor, size: 28),
+                    ),
                   ),
+
                   Text(
                     'PROFILE',
                     style: GoogleFonts.epilogue(
@@ -225,11 +403,15 @@ class _ProfilePageState extends State<ProfilePage> {
                       letterSpacing: -1,
                     ),
                   ),
-                  _NeuBoxCustom(
-                    padding: const EdgeInsets.all(8),
-                    backgroundColor: Colors.white,
-                    child: const Icon(Icons.settings_outlined, color: darkColor, size: 28),
+                  GestureDetector(
+                    onTap: _showSettingsSheet,
+                    child: _NeuBoxCustom(
+                      padding: const EdgeInsets.all(8),
+                      backgroundColor: Colors.white,
+                      child: const Icon(Icons.settings_outlined, color: darkColor, size: 28),
+                    ),
                   ),
+
                 ],
               ),
               const SizedBox(height: 32),
@@ -286,7 +468,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ],
                       ),
                       child: Text(
-                        'LEVEL 24',
+                        'LEVEL ${(_tasksDone ~/ 50) + 1}',
                         style: GoogleFonts.epilogue(
                           fontSize: 12,
                           fontWeight: FontWeight.w900,
@@ -344,7 +526,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Member since JAN 2023',
+                'Member since ${DateFormat('MMM yyyy').format(_memberSince ?? DateTime.now()).toUpperCase()}',
                 style: GoogleFonts.epilogue(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -373,7 +555,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '1,284',
+                            NumberFormat('#,###').format(_tasksDone),
                             style: GoogleFonts.epilogue(
                               fontSize: 28,
                               fontWeight: FontWeight.w900,
@@ -418,7 +600,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '15 DAYS',
+                            '$_streakDays DAYS',
                             style: GoogleFonts.epilogue(
                               fontSize: 24,
                               fontWeight: FontWeight.w900,
@@ -473,15 +655,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildGraphPoint(),
-                        _buildGraphPoint(),
-                        _buildGraphPoint(),
-                        _buildGraphPoint(),
-                        _buildGraphPoint(),
-                        _buildGraphPoint(),
-                        _buildGraphPoint(),
-                      ],
+                      children: List.generate(7, (index) {
+                        int value = _weeklyProgress.length > index ? _weeklyProgress[index] : 0;
+                        return _buildBar(value);
+                      }),
                     ),
                     Container(
                       height: 4,
@@ -558,12 +735,22 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildGraphPoint() {
-    // We would use an actual height for the graph point if we had data
+  Widget _buildBar(int count) {
+    const darkColor = Color(0xFF1A1F2B);
+    // Calculate height: 4px base + 8px per task, max 100px
+    double height = 4.0 + (count * 8.0);
+    if (height > 100) height = 100;
+
     return Container(
-      width: 4,
-      height: 4,
-      color: const Color(0xFF1A1F2B),
+      width: 20,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF6DE89D),
+        border: Border.all(color: darkColor, width: 2),
+        boxShadow: const [
+          BoxShadow(color: darkColor, offset: Offset(2, 2)),
+        ],
+      ),
     );
   }
 
