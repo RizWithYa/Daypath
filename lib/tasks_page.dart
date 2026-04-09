@@ -39,7 +39,7 @@ class _TasksPageState extends State<TasksPage> {
         _tasks = [
           TodoTask(
             id: '1',
-            title: 'Design Review\\nPresentation',
+            title: 'Design Review\nPresentation',
             subtitle: '9:00 AM - 10:30 AM',
             isUrgent: true,
             category: TaskCategory.work,
@@ -81,7 +81,6 @@ class _TasksPageState extends State<TasksPage> {
       });
     }
   }
-
   Future<void> _saveTasks() async {
     final prefs = await SharedPreferences.getInstance();
     final String tasksJson = jsonEncode(_tasks.map((t) => t.toJson()).toList());
@@ -135,6 +134,13 @@ class _TasksPageState extends State<TasksPage> {
     }
   }
 
+  void _deleteTask(String id) {
+    setState(() {
+      _tasks.removeWhere((t) => t.id == id);
+    });
+    _saveTasks();
+  }
+
   void _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -165,7 +171,6 @@ class _TasksPageState extends State<TasksPage> {
       });
     }
   }
-
   void _addNewTask() {
     String title = '';
     String subtitle = '';
@@ -183,6 +188,12 @@ class _TasksPageState extends State<TasksPage> {
             return AlertDialog(
               backgroundColor: Colors.white,
               surfaceTintColor: Colors.white,
+              insetPadding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 24,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(0),
                 side: const BorderSide(color: darkColor, width: 3.5),
@@ -397,8 +408,12 @@ class _TasksPageState extends State<TasksPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.all(24),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
@@ -435,7 +450,7 @@ class _TasksPageState extends State<TasksPage> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  task.title.replaceAll('\\n', '\n'),
+                  task.title.replaceAll('\n', '\n'),
                   style: GoogleFonts.epilogue(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
@@ -526,12 +541,13 @@ class _TasksPageState extends State<TasksPage> {
                 const SizedBox(height: 16),
               ],
             ),
+            ),
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
-
   @override
   Widget build(BuildContext context) {
     const darkColor = Color(0xFF1A1F2B);
@@ -722,9 +738,11 @@ class _TasksPageState extends State<TasksPage> {
                       child: _TaskItem(
                         title: task.title,
                         subtitle: task.subtitle,
+                        dueDate: task.dueDate,
                         iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : Colors.white,
                         onToggle: () {},
                         onTap: () {},
+                        onDelete: () {},
                         isCheckbox: true,
                         checked: task.isDone,
                         isDone: task.isDone,
@@ -738,9 +756,11 @@ class _TasksPageState extends State<TasksPage> {
                     child: _TaskItem(
                       title: task.title,
                       subtitle: task.subtitle,
+                      dueDate: task.dueDate,
                       iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : Colors.white,
                       onToggle: () {},
                       onTap: () {},
+                      onDelete: () {},
                       isCheckbox: true,
                       checked: task.isDone,
                       isDone: task.isDone,
@@ -775,9 +795,11 @@ class _TasksPageState extends State<TasksPage> {
                       return _TaskItem(
                         title: task.title,
                         subtitle: task.subtitle,
+                        dueDate: task.dueDate,
                         iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : (isDoneSection ? const Color(0xFF69B4FF) : Colors.white),
                         onToggle: () => _toggleTaskStatus(task.id),
                         onTap: () => _showTaskDetails(task),
+                        onDelete: () => _deleteTask(task.id),
                         isCheckbox: true,
                         checked: task.isDone,
                         isDone: task.isDone,
@@ -794,7 +816,6 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 }
-
 class _TabItem extends StatelessWidget {
   final String title;
   final bool isActive;
@@ -828,6 +849,7 @@ class _TabItem extends StatelessWidget {
 class _TaskItem extends StatelessWidget {
   final String title;
   final String subtitle;
+  final DateTime? dueDate;
   final Color iconBgColor;
   final IconData? iconIcon;
   final bool isCheckbox;
@@ -836,13 +858,16 @@ class _TaskItem extends StatelessWidget {
   final Color? leftDeco;
   final VoidCallback onToggle;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   const _TaskItem({
     required this.title,
     required this.subtitle,
+    this.dueDate,
     required this.iconBgColor,
     required this.onToggle,
     required this.onTap,
+    required this.onDelete,
     this.iconIcon,
     this.isCheckbox = false,
     this.checked = false,
@@ -896,7 +921,7 @@ class _TaskItem extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            title.replaceAll('\\n', '\n'),
+                            title.replaceAll('\n', '\n'),
                             style: GoogleFonts.epilogue(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
@@ -913,15 +938,33 @@ class _TaskItem extends StatelessWidget {
                               color: const Color(0xFF6C757D),
                             ),
                           ),
+                          if (dueDate != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Deadline: ${DateFormat('MMM dd, yyyy').format(dueDate!)}',
+                              style: GoogleFonts.epilogue(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: isDone ? const Color(0xFF9CA3AF) : const Color(0xFFFF649C),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
                   ),
                 ),
+                // Delete Button
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline, color: darkColor, size: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  constraints: const BoxConstraints(),
+                ),
                 // Drag indicator
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Icon(Icons.drag_indicator, color: Color(0xFF9CA3AF)),
+                  padding: EdgeInsets.only(right: 12),
+                  child: Icon(Icons.drag_indicator, color: Color(0xFF9CA3AF), size: 18),
                 ),
               ],
             ),

@@ -99,6 +99,12 @@ class _HabitsPageState extends State<HabitsPage> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: const Color(0xFFFFF1E4),
+          insetPadding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 24,
+          ),
           shape: const RoundedRectangleBorder(side: BorderSide(color: Color(0xFF1A1F2B), width: 3)),
           title: Text(
             'ADD NEW HABIT',

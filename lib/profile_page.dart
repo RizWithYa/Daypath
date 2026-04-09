@@ -86,10 +86,15 @@ class ProfilePageState extends State<ProfilePage> {
     const darkColor = Color(0xFF1A1F2B);
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.all(24),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
@@ -154,9 +159,11 @@ class ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 20),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
+  },
+);
   }
 
   void _showResetConfirmation() {
@@ -165,6 +172,12 @@ class ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
+        insetPadding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 24,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(0),
           side: const BorderSide(color: darkColor, width: 3),
@@ -227,6 +240,12 @@ class ProfilePageState extends State<ProfilePage> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: Colors.white,
+          insetPadding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 24,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: const BorderSide(color: Color(0xFF1A1F2B), width: 3),
@@ -280,10 +299,15 @@ class ProfilePageState extends State<ProfilePage> {
   void _showImagePickerOptions() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.all(24),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
@@ -343,9 +367,11 @@ class ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 20),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
+  },
+);
   }
 
   @override
@@ -391,10 +417,16 @@ class ProfilePageState extends State<ProfilePage> {
                   ),
                   GestureDetector(
                     onTap: _showSettingsSheet,
-                    child: NeuBox(
-                      padding: const EdgeInsets.all(8),
-                      backgroundColor: Colors.white,
-                      child: const Icon(Icons.settings_outlined, color: darkColor, size: 28),
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: NeuBox(
+                          padding: const EdgeInsets.all(8),
+                          backgroundColor: Colors.white,
+                          child: const Icon(Icons.settings_outlined, color: darkColor, size: 28),
+                        ),
+                      ),
                     ),
                   ),
 
@@ -671,30 +703,16 @@ class ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 32),
 
               // ACHIEVEMENTS
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'ACHIEVEMENTS',
-                  style: GoogleFonts.epilogue(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: darkColor,
-                  ),
-                ),
+              _buildAchievementCategory(
+                title: 'ACHIEVEMENTS EARNED',
+                achievements: Achievement.defaultAchievements.where((a) => _unlockedAchievementIds.contains(a.id)).toList(),
+                isUnlocked: true,
               ),
               const SizedBox(height: 16),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.none,
-                child: Row(
-                  children: Achievement.defaultAchievements.map((achievement) {
-                    final isUnlocked = _unlockedAchievementIds.contains(achievement.id);
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 16),
-                      child: _buildAchievementBadge(achievement, isUnlocked),
-                    );
-                  }).toList(),
-                ),
+              _buildAchievementCategory(
+                title: 'YET TO UNLOCK',
+                achievements: Achievement.defaultAchievements.where((a) => !_unlockedAchievementIds.contains(a.id)).toList(),
+                isUnlocked: false,
               ),
               const SizedBox(height: 120), // Padding for nav bar
             ],
@@ -723,9 +741,49 @@ class ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildAchievementBadge(Achievement achievement, bool isUnlocked) {
+  Widget _buildAchievementCategory({
+    required String title,
+    required List<Achievement> achievements,
+    required bool isUnlocked,
+  }) {
     const darkColor = Color(0xFF1A1F2B);
-    // Standard grayscale matrix
+    return NeuBox(
+      padding: EdgeInsets.zero,
+      backgroundColor: Colors.white,
+      child: ExpansionTile(
+        title: Text(
+          title,
+          style: GoogleFonts.epilogue(
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+            color: darkColor,
+          ),
+        ),
+        iconColor: darkColor,
+        collapsedIconColor: darkColor,
+        shape: const RoundedRectangleBorder(side: BorderSide.none),
+        collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
+        children: achievements.isEmpty
+            ? [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'NO ACHIEVEMENTS YET',
+                    style: GoogleFonts.epilogue(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey,
+                    ),
+                  ),
+                )
+              ]
+            : achievements.map((a) => _buildAchievementItem(a, isUnlocked)).toList(),
+      ),
+    );
+  }
+
+  Widget _buildAchievementItem(Achievement achievement, bool isUnlocked) {
+    const darkColor = Color(0xFF1A1F2B);
     const ColorFilter greyscale = ColorFilter.matrix(<double>[
       0.2126, 0.7152, 0.0722, 0, 0,
       0.2126, 0.7152, 0.0722, 0, 0,
@@ -733,39 +791,49 @@ class ProfilePageState extends State<ProfilePage> {
       0, 0, 0, 1, 0,
     ]);
 
-    return NeuBox(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      backgroundColor: isUnlocked ? Colors.white : const Color(0xFFE5E7EB),
-      child: Column(
-        children: [
-          ColorFiltered(
-            colorFilter: isUnlocked ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply) : greyscale,
-            child: Icon(achievement.icon, color: darkColor, size: 32),
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: darkColor, width: 2)),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: ColorFiltered(
+          colorFilter: isUnlocked ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply) : greyscale,
+          child: Icon(achievement.icon, color: darkColor, size: 32),
+        ),
+        title: Text(
+          achievement.title.toUpperCase(),
+          style: GoogleFonts.epilogue(
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+            color: darkColor,
           ),
-          const SizedBox(height: 12),
-          Text(
-            achievement.title.toUpperCase(),
-            style: GoogleFonts.epilogue(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              color: darkColor,
-            ),
-          ),
-          if (!isUnlocked) ...[
-            const SizedBox(height: 4),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
             Text(
-              'LOCKED',
+              'HOW TO UNLOCK',
               style: GoogleFonts.epilogue(
-                fontSize: 8,
+                fontSize: 10,
                 fontWeight: FontWeight.w900,
-                color: Colors.grey[600],
+                color: const Color(0xFFFF649C), // Pink accent
+              ),
+            ),
+            Text(
+              achievement.description,
+              style: GoogleFonts.epilogue(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: darkColor.withOpacity(0.7),
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
-}
+  }
 }
 
 class _DayLabel extends StatelessWidget {

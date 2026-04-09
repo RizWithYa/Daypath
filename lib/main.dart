@@ -43,8 +43,40 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
+  bool _isProgrammaticChange = false;
+  late final PageController _pageController;
   final GlobalKey<ProfilePageState> _profileKey = GlobalKey<ProfilePageState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 0);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   void _onNavTapped(int index) {
+    if (index == _currentIndex) return;
+    if (index == 3) {
+      _profileKey.currentState?.refreshData();
+    }
+    _isProgrammaticChange = true;
+    setState(() {
+      _currentIndex = index;
+    });
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+    ).then((_) => _isProgrammaticChange = false);
+  }
+
+  void _onPageChanged(int index) {
+    if (_isProgrammaticChange) return;
     if (index == 3) {
       _profileKey.currentState?.refreshData();
     }
@@ -56,8 +88,10 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
+      body: PageView(
+        controller: _pageController,
+        physics: const ClampingScrollPhysics(),
+        onPageChanged: _onPageChanged,
         children: [
           _HomeView(onNavigateToTab: _onNavTapped),
           TasksPage(onNavigateToTab: _onNavTapped),
@@ -191,6 +225,10 @@ class _HomeViewState extends State<_HomeView> {
         await showDialog(
           context: context,
           builder: (context) => AlertDialog(
+            insetPadding: EdgeInsets.only(
+              left: 24, right: 24, top: 24,
+              bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 24,
+            ),
             title: const Text('Layanan Lokasi Mati', style: TextStyle(fontWeight: FontWeight.bold)),
             content: const Text('Harap aktifkan GPS/layanan lokasi untuk mendeteksi waktu sholat yang akurat di daerah Anda.'),
             actions: [
@@ -212,6 +250,10 @@ class _HomeViewState extends State<_HomeView> {
         bool? allow = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
+            insetPadding: EdgeInsets.only(
+              left: 24, right: 24, top: 24,
+              bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 24,
+            ),
             title: const Text('Izin Lokasi Dibutuhkan', style: TextStyle(fontWeight: FontWeight.bold)),
             content: const Text('Aplikasi ini membutuhkan akses lokasi Anda untuk dapat menampilkan jadwal sholat harian yang akurat sesuai dengan kota Anda.'),
             actions: [
@@ -244,6 +286,10 @@ class _HomeViewState extends State<_HomeView> {
         await showDialog(
           context: context,
           builder: (context) => AlertDialog(
+            insetPadding: EdgeInsets.only(
+              left: 24, right: 24, top: 24,
+              bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 24,
+            ),
             title: const Text('Izin Lokasi Ditolak Permanen', style: TextStyle(fontWeight: FontWeight.bold)),
             content: const Text('Anda telah menolak izin lokasi secara permanen. Silakan izinkan akses lokasi melalui Pengaturan perangkat Anda.'),
             actions: [
@@ -327,9 +373,14 @@ class _HomeViewState extends State<_HomeView> {
   void _showMenuModal() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
@@ -378,7 +429,9 @@ class _HomeViewState extends State<_HomeView> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   @override
@@ -613,65 +666,8 @@ children: [
 
               ),
 
-            const SizedBox(height: 30),
 
-            // --- YOUR LOCATION ---
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'YOUR LOCATION',
-                  style: GoogleFonts.epilogue(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: darkColor,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: _isLoading ? null : _fetchPrayerTimes,
-                  icon: _isLoading 
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.my_location, size: 16),
-                  label: Text(
-                    _isLoading ? 'FETCHING...' : 'REFRESH LOCATION',
-                    style: GoogleFonts.epilogue(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF007BFF),
-                    ),
-                  ),
-                ),
-              ],
-            ),
 
-            const SizedBox(height: 16),
-            NeuBox(
-              padding: EdgeInsets.zero,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(5.5),
-                child: Image.asset(
-                  'icon/main_icon/Overlay+Border+Shadow.webp', // Assuming map snippet
-                  height: 150,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 150,
-                    width: double.infinity,
-                    color: Colors.grey[300],
-                    alignment: Alignment.bottomLeft,
-                    padding: const EdgeInsets.all(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      color: Colors.white,
-                      child: Text(
-                        _locationName.toUpperCase(),
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
             
             const SizedBox(height: 100), // padding for bottom nav
           ],
@@ -798,7 +794,7 @@ class ScheduleItem extends StatelessWidget {
   }
 }
 
-class CustomBottomNav extends StatelessWidget {
+class CustomBottomNav extends StatefulWidget {
   final int currentIndex;
   final Function(int) onTap;
 
@@ -809,66 +805,102 @@ class CustomBottomNav extends StatelessWidget {
   });
 
   @override
+  State<CustomBottomNav> createState() => _CustomBottomNavState();
+}
+
+class _CustomBottomNavState extends State<CustomBottomNav> {
+  int _pressedIndex = -1;
+  Duration _scaleDuration = const Duration(milliseconds: 150);
+
+  @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Container(
-        height: 70,
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: NeuBox(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Expanded(child: _buildNavItem(0, 'Home', 'icon/main_icon/Home_navbar.webp')),
-                    Expanded(child: _buildNavItem(1, 'Tasks', 'icon/main_icon/Task_navbar.webp')),
-                    Expanded(child: _buildNavItem(2, 'Habits', 'icon/main_icon/Habits_navbar.webp')),
-                    Expanded(child: _buildNavItem(3, 'Profile', 'icon/main_icon/Profile_navbar.webp')),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        height: 84,
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        child: NeuBox(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: _buildNavItem(0, 'HOME', 'icon/main_icon/Home_navbar.webp')),
+              Expanded(child: _buildNavItem(1, 'TASKS', 'icon/main_icon/Task_navbar.webp')),
+              Expanded(child: _buildNavItem(2, 'HABITS', 'icon/main_icon/Habits_navbar.webp')),
+              Expanded(child: _buildNavItem(3, 'PROFILE', 'icon/main_icon/Profile_navbar.webp')),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildNavItem(int index, String label, String iconAsset) {
-    final isActive = currentIndex == index;
-    final color = isActive ? const Color(0xFF007BFF) : Colors.grey[500];
-    
+    final isActive = widget.currentIndex == index;
+    final isPressed = _pressedIndex == index;
+    final contentColor = isActive ? Colors.white : Colors.grey[500]!;
+
     return GestureDetector(
+      onTapDown: (_) => setState(() {
+        _pressedIndex = index;
+        _scaleDuration = const Duration(milliseconds: 100);
+      }),
+      onTapUp: (_) {
+        widget.onTap(index);
+        setState(() {
+          _pressedIndex = -1;
+          _scaleDuration = const Duration(milliseconds: 200);
+        });
+      },
+      onTapCancel: () => setState(() {
+        _pressedIndex = -1;
+        _scaleDuration = const Duration(milliseconds: 200);
+      }),
       behavior: HitTestBehavior.opaque,
-      onTap: () => onTap(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutBack,
-        transform: Matrix4.translationValues(0, isActive ? -6.0 : 0.0, 0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              iconAsset, 
-              width: 24, 
-              height: 24, 
-              color: color,
-              errorBuilder: (_, _, _) => Icon(Icons.circle, size: 24, color: color),
+      child: Center(
+        child: AnimatedScale(
+          scale: isPressed ? 0.90 : 1.0,
+          duration: _scaleDuration,
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isActive ? const Color(0xFF007BFF) : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              border: isActive ? Border.all(color: const Color(0xFF1A1F2B), width: 2.5) : null,
+              boxShadow: isActive && !isPressed
+                  ? [const BoxShadow(color: Color(0xFF1A1F2B), offset: Offset(3, 3), blurRadius: 0)]
+                  : isActive && isPressed
+                      ? [const BoxShadow(color: Color(0xFF1A1F2B), offset: Offset(0, 0), blurRadius: 0)]
+                      : null,
             ),
-            const SizedBox(height: 4),
-            Text(
-              label.toUpperCase(),
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  iconAsset,
+                  width: 22,
+                  height: 22,
+                  color: contentColor,
+                  errorBuilder: (_, _, _) => Icon(Icons.circle, size: 22, color: contentColor),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: GoogleFonts.epilogue(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 9,
+                    color: contentColor,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
