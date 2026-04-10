@@ -193,22 +193,22 @@ class _HomeViewState extends State<_HomeView> {
           'https://api.aladhan.com/v1/timingsByCity?city=$city&country=Indonesia&method=11'));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final timings = data['data']['timings'];
+        final timings = data["data"]["timings"];
         setState(() {
-          _locationName = '$city, Indonesia';
+          _locationName = "$city, Indonesia";
           _prayerTimes = {
-            'Fajr': timings['Fajr'],
-            'Dhuhr': timings['Dhuhr'],
-            'Asr': timings['Asr'],
-            'Maghrib': timings['Maghrib'],
-            'Isha': timings['Isha'],
+            "Fajr": timings["Fajr"],
+            "Dhuhr": timings["Dhuhr"],
+            "Asr": timings["Asr"],
+            "Maghrib": timings["Maghrib"],
+            "Isha": timings["Isha"],
           };
           _isLoading = false;
         });
         _updateCountdown(null);
       }
     } catch (e) {
-       debugPrint('Failed to load fallback prayer times: $e');
+      debugPrint("Failed to load fallback prayer times: $e");
     } finally {
       if (mounted) {
         setState(() {
@@ -257,8 +257,8 @@ class _HomeViewState extends State<_HomeView> {
               left: 24, right: 24, top: 24,
               bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 24,
             ),
-            title: const Text('Izin Lokasi Dibutuhkan', style: TextStyle(fontWeight: FontWeight.bold)),
-            content: const Text('Aplikasi ini membutuhkan akses lokasi Anda untuk dapat menampilkan jadwal sholat harian yang akurat sesuai dengan kota Anda.'),
+            title: const Text('Izin Lokasi', style: TextStyle(fontWeight: FontWeight.bold)),
+            content: const Text('Izinkan aplikasi mengakses lokasi Anda untuk menampilkan waktu sholat?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),

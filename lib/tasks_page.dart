@@ -189,12 +189,8 @@ class _TasksPageState extends State<TasksPage> {
               scrollable: true,
               backgroundColor: Colors.white,
               surfaceTintColor: Colors.white,
-              insetPadding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 24,
-                bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 24,
-              ),
+              insetPadding: const EdgeInsets.all(24),
+              actionsPadding: const EdgeInsets.only(bottom: 24, right: 24, left: 24, top: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(0),
                 side: const BorderSide(color: darkColor, width: 3.5),
@@ -207,8 +203,7 @@ class _TasksPageState extends State<TasksPage> {
                   letterSpacing: -0.5,
                 ),
               ),
-              content: SingleChildScrollView(
-                child: Column(
+              content: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -354,12 +349,10 @@ class _TasksPageState extends State<TasksPage> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text('MARK AS URGENT', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
                       ],
                     ),
                   ],
                 ),
-              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -747,7 +740,7 @@ class _TasksPageState extends State<TasksPage> {
                         isCheckbox: true,
                         checked: task.isDone,
                         isDone: task.isDone,
-                        leftDeco: task.leftDeco,
+                        leftDeco: const Color(0xFF007BFF),
                         iconIcon: task.isUrgent ? Icons.priority_high : null,
                       ),
                     ),
@@ -765,7 +758,7 @@ class _TasksPageState extends State<TasksPage> {
                       isCheckbox: true,
                       checked: task.isDone,
                       isDone: task.isDone,
-                      leftDeco: task.leftDeco,
+                      leftDeco: const Color(0xFF007BFF),
                       iconIcon: task.isUrgent ? Icons.priority_high : null,
                     ),
                   ),
@@ -804,7 +797,7 @@ class _TasksPageState extends State<TasksPage> {
                         isCheckbox: true,
                         checked: task.isDone,
                         isDone: task.isDone,
-                        leftDeco: task.leftDeco,
+                        leftDeco: const Color(0xFF007BFF),
                         iconIcon: task.isUrgent ? Icons.priority_high : (isDoneSection ? Icons.check : null),
                       );
                     },
