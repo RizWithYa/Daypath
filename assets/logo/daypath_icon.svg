@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Hard shadow (neubrutalism) -->
+  <rect x="4" y="4" width="60" height="60" rx="0" fill="#1A1F2B" />
+  <!-- Icon card -->
+  <rect x="0" y="0" width="60" height="60" rx="0"
+        fill="#007BFF" stroke="#1A1F2B" stroke-width="3" />
+
+  <!-- Crescent moon -->
+  <circle cx="30" cy="22" r="14" fill="#FFBA24" />
+  <circle cx="37" cy="17" r="11.5" fill="#007BFF" />
+
+  <!-- Arrow path upward -->
+  <rect x="27" y="36" width="6" height="16" rx="0" fill="#FFFFFF" />
+  <polygon points="30,30 21,44 39,44" fill="#FFFFFF" />
+  <!-- Dot at base -->
+  <circle cx="30" cy="54" r="3" fill="#FFBA24" />
+</svg>

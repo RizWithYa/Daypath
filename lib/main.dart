@@ -11,6 +11,7 @@ import 'tasks_page.dart';
 import 'habits_page.dart';
 import 'profile_page.dart';
 import 'widgets.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 void main() {
   runApp(const MuslimDailyApp());
@@ -23,7 +24,7 @@ class MuslimDailyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Muslim Daily',
+      title: 'DayPath',
       theme: ThemeData(
         scaffoldBackgroundColor: const Color(0xFFDCF6E3), // Light green tint
         textTheme: GoogleFonts.epilogueTextTheme(),
@@ -312,13 +313,44 @@ class _HomeViewState extends State<_HomeView> {
   Future<void> _getAddressFromLatLong(Position position) async {
     try {
       List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-      Placemark place = placemarks[0];
-      setState(() {
-        _locationName = "${place.subAdministrativeArea}, ${place.country}";
-      });
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        String city = place.subAdministrativeArea ?? place.locality ?? place.administrativeArea ?? '';
+        if (city.isEmpty) city = 'Unknown City';
+        String country = place.country ?? '';
+        setState(() {
+          _locationName = "$city${country.isNotEmpty ? ', $country' : ''}";
+        });
+        return;
+      }
     } catch (e) {
-      debugPrint(e.toString());
+      debugPrint("Geocoding failed: $e, trying fallback.");
     }
+    
+    try {
+      final response = await http.get(
+        Uri.parse('https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.latitude}&lon=${position.longitude}'),
+        headers: {'User-Agent': 'MuslimDailyApp'},
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['address'] != null) {
+          final address = data['address'];
+          String city = address['city'] ?? address['town'] ?? address['village'] ?? address['county'] ?? address['state'] ?? 'Unknown City';
+          String country = address['country'] ?? '';
+          setState(() {
+            _locationName = "$city${country.isNotEmpty ? ', $country' : ''}";
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint("Nominatim fallback failed: $e");
+    }
+
+    setState(() {
+      _locationName = "${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}";
+    });
   }
 
   void _updateCountdown(Timer? timer) {
@@ -457,14 +489,25 @@ class _HomeViewState extends State<_HomeView> {
                   child: Image.asset('icon/main_icon/3_Menubar.webp', width: 24, height: 24),
                 ),
 
-                Text(
-                  'MUSLIM DAILY',
-                  style: GoogleFonts.epilogue(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: darkColor,
-                    letterSpacing: -0.5,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SvgPicture.asset(
+                      'assets/logo/daypath_icon.svg',
+                      width: 28,
+                      height: 28,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'DAYPATH',
+                      style: GoogleFonts.epilogue(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: darkColor,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
                 ),
                 NeuButton(
                   onTap: () => widget.onNavigateToTab?.call(3),
