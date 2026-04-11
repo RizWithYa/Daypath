@@ -185,28 +185,30 @@ class _TasksPageState extends State<TasksPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             const darkColor = Color(0xFF1A1F2B);
-            return AlertDialog(
-              scrollable: true,
+            return Dialog(
               backgroundColor: Colors.white,
               surfaceTintColor: Colors.white,
               insetPadding: const EdgeInsets.all(24),
-              actionsPadding: const EdgeInsets.only(bottom: 24, right: 24, left: 24, top: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(0),
                 side: const BorderSide(color: darkColor, width: 3.5),
               ),
-              title: Text(
-                'ADD NEW TASK',
-                style: GoogleFonts.epilogue(
-                  fontWeight: FontWeight.w900,
-                  color: darkColor,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              content: Column(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      'ADD NEW TASK',
+                      style: GoogleFonts.epilogue(
+                        fontWeight: FontWeight.w900,
+                        color: darkColor,
+                        letterSpacing: -0.5,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                     Text('TITLE', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
                     const SizedBox(height: 8),
                     TextField(
@@ -349,45 +351,52 @@ class _TasksPageState extends State<TasksPage> {
                           ),
                         ),
                         const SizedBox(width: 12),
+                        Text('MARK AS URGENT', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12, color: darkColor)),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text('CANCEL', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
+                        ),
+                        const SizedBox(width: 16),
+                        NeuBox(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          backgroundColor: const Color(0xFF00FF7F),
+                          borderRadius: 0,
+                          borderWidth: 3,
+                          offset: const Offset(4, 4),
+                          child: InkWell(
+                            onTap: () {
+                              if (title.isNotEmpty) {
+                                setState(() {
+                                  _tasks.add(TodoTask(
+                                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                    title: title,
+                                    subtitle: subtitle.isNotEmpty 
+                                        ? subtitle 
+                                        : (dueDate != null ? DateFormat('MMM dd, yyyy').format(dueDate!) : 'NO DUE DATE'),
+                                    description: description,
+                                    dueDate: dueDate,
+                                    isUrgent: isUrgent,
+                                    category: category,
+                                  ));
+                                });
+                                _saveTasks();
+                                Navigator.pop(context);
+                              }
+                            },
+                            child: Text('CONFIRM', style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, color: darkColor)),
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('CANCEL', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
-                ),
-                NeuBox(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  backgroundColor: const Color(0xFF00FF7F),
-                  borderRadius: 0,
-                  borderWidth: 3,
-                  offset: const Offset(4, 4),
-                  child: InkWell(
-                    onTap: () {
-                      if (title.isNotEmpty) {
-                        setState(() {
-                          _tasks.add(TodoTask(
-                            id: DateTime.now().millisecondsSinceEpoch.toString(),
-                            title: title,
-                            subtitle: subtitle.isNotEmpty 
-                                ? subtitle 
-                                : (dueDate != null ? DateFormat('MMM dd, yyyy').format(dueDate!) : 'NO DUE DATE'),
-                            description: description,
-                            dueDate: dueDate,
-                            isUrgent: isUrgent,
-                            category: category,
-                          ));
-                        });
-                        _saveTasks();
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: Text('CONFIRM', style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, color: darkColor)),
-                  ),
-                ),
-              ],
+              ),
             );
           },
         );

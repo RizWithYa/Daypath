@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
@@ -125,6 +126,7 @@ class _HomeViewState extends State<_HomeView> {
   String _countdown = '00:00:00';
   String _locationName = 'Searching location...';
   bool _isLoading = false;
+  String? _errorMessage;
   Map<String, bool> _mutedPrayers = {};
 
   Timer? _timer;
@@ -145,36 +147,49 @@ class _HomeViewState extends State<_HomeView> {
   }
 
   Future<void> _fetchPrayerTimes() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
       _locationName = 'Locating...';
     });
     try {
-      Position position = await _getGeoLocationPosition();
-      await _getAddressFromLatLong(position);
+      Position position = await _getGeoLocationPosition().timeout(const Duration(seconds: 15));
+      await _getAddressFromLatLong(position).timeout(const Duration(seconds: 10));
 
       final response = await http.get(Uri.parse(
-          'https://api.aladhan.com/v1/timings?latitude=${position.latitude}&longitude=${position.longitude}&method=11'));
+          'https://api.aladhan.com/v1/timings?latitude=${position.latitude}&longitude=${position.longitude}&method=11'))
+          .timeout(const Duration(seconds: 10));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final timings = data['data']['timings'];
-        setState(() {
-          _prayerTimes = {
-            'Fajr': timings['Fajr'],
-            'Dhuhr': timings['Dhuhr'],
-            'Asr': timings['Asr'],
-            'Maghrib': timings['Maghrib'],
-            'Isha': timings['Isha'],
-          };
-          _isLoading = false;
-        });
-        _updateCountdown(null);
+        if (mounted) {
+          setState(() {
+            _prayerTimes = {
+              'Fajr': timings['Fajr'],
+              'Dhuhr': timings['Dhuhr'],
+              'Asr': timings['Asr'],
+              'Maghrib': timings['Maghrib'],
+              'Isha': timings['Isha'],
+            };
+            _isLoading = false;
+            _errorMessage = null;
+          });
+          _updateCountdown(null);
+        }
+      } else {
+        throw HttpException('Server returned ${response.statusCode}');
       }
+    } on SocketException {
+      debugPrint('No internet connection');
+      _handleFetchError('No internet connection. Please check your network.');
+    } on TimeoutException {
+      debugPrint('Connection timed out');
+      _handleFetchError('Connection timed out. Please try again.');
     } catch (e) {
       debugPrint('Failed to load prayer times: $e');
-      // Fallback if location fails
-      _fetchPrayerTimesByCity('Jakarta');
+      _handleFetchError('Failed to load prayer times. Trying fallback...');
     } finally {
       if (mounted) {
         setState(() {
@@ -184,31 +199,64 @@ class _HomeViewState extends State<_HomeView> {
     }
   }
 
+  void _handleFetchError(String message) {
+    if (_prayerTimes == null) {
+      // Only show error message if we don't have any data yet
+      setState(() {
+        _errorMessage = message;
+      });
+    } else {
+      // Just show a snackbar if we already have data (background refresh failed)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+    
+    // Fallback if main location fails or has error, but only if it's not a generic error we already handled manually
+    if (_prayerTimes == null) {
+      _fetchPrayerTimesByCity('Jakarta');
+    }
+  }
+
   Future<void> _fetchPrayerTimesByCity(String city) async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
     try {
        final response = await http.get(Uri.parse(
-          'https://api.aladhan.com/v1/timingsByCity?city=$city&country=Indonesia&method=11'));
+          'https://api.aladhan.com/v1/timingsByCity?city=$city&country=Indonesia&method=11'))
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final timings = data["data"]["timings"];
-        setState(() {
-          _locationName = "$city, Indonesia";
-          _prayerTimes = {
-            "Fajr": timings["Fajr"],
-            "Dhuhr": timings["Dhuhr"],
-            "Asr": timings["Asr"],
-            "Maghrib": timings["Maghrib"],
-            "Isha": timings["Isha"],
-          };
-          _isLoading = false;
-        });
-        _updateCountdown(null);
+        if (mounted) {
+          setState(() {
+            _locationName = "$city, Indonesia";
+            _prayerTimes = {
+              "Fajr": timings["Fajr"],
+              "Dhuhr": timings["Dhuhr"],
+              "Asr": timings["Asr"],
+              "Maghrib": timings["Maghrib"],
+              "Isha": timings["Isha"],
+            };
+            _isLoading = false;
+            _errorMessage = null; // Clear error if fallback succeeds
+          });
+          _updateCountdown(null);
+        }
+      } else {
+        throw HttpException('Server returned ${response.statusCode}');
       }
+    } on SocketException {
+      if (mounted) setState(() => _errorMessage = 'No internet connection. Using offline fallback if possible.');
     } catch (e) {
       debugPrint("Failed to load fallback prayer times: $e");
+      if (mounted && _prayerTimes == null) {
+        setState(() => _errorMessage = 'Failed to load prayer times. Check your connection.');
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -647,10 +695,39 @@ class _HomeViewState extends State<_HomeView> {
             ),
             const SizedBox(height: 16),
 
-            if (_prayerTimes == null || _isLoading)
+            if (_isLoading && _prayerTimes == null)
               const Padding(
-                padding: EdgeInsets.all(20),
-                child: Center(child: CircularProgressIndicator()),
+                padding: EdgeInsets.all(40),
+                child: Center(child: CircularProgressIndicator(color: Color(0xFF007BFF))),
+              )
+            else if (_errorMessage != null && _prayerTimes == null)
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    const Icon(Icons.wifi_off_rounded, size: 48, color: Color(0xFF6C757D)),
+                    const SizedBox(height: 16),
+                    Text(
+                      _errorMessage!, 
+                      textAlign: TextAlign.center, 
+                      style: GoogleFonts.epilogue(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF6C757D),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    NeuButton(
+                      onTap: _fetchPrayerTimes,
+                      color: const Color(0xFF007BFF),
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      child: const Text(
+                        'RETRY', 
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
               )
             else
               Column(
