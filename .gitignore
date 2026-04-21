@@ -46,3 +46,6 @@ app.*.map.json
 
 .ralph-loop.local.md
 .sisyphus
+*.jks
+*.keystore
+.env

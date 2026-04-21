@@ -12,9 +12,3 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
-
-android/local.properties
-android/key.properties
-*.jks
-*.keystore
-.env
