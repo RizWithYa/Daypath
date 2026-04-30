@@ -142,7 +142,7 @@ class _HabitsPageState extends State<HabitsPage> {
                         margin: const EdgeInsets.only(right: 8),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: selectedIcon == icon ? const Color(0xFF007BFF) : Colors.white,
+                          color: selectedIcon == icon ? Theme.of(context).colorScheme.primary : Colors.white,
                           border: Border.all(color: const Color(0xFF1A1F2B), width: 2),
                         ),
                         child: Icon(icon, color: selectedIcon == icon ? Colors.white : const Color(0xFF1A1F2B)),
@@ -216,11 +216,11 @@ class _HabitsPageState extends State<HabitsPage> {
         TextField(
           controller: controller,
           style: GoogleFonts.epilogue(fontWeight: FontWeight.w600),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white,
             enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF1A1F2B), width: 2), borderRadius: BorderRadius.zero),
-            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF007BFF), width: 2), borderRadius: BorderRadius.zero),
+            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2), borderRadius: BorderRadius.zero),
           ),
         ),
       ],
@@ -248,7 +248,7 @@ class _HabitsPageState extends State<HabitsPage> {
                     onTap: () => widget.onNavigateToTab?.call(1),
                     child: NeuBox(
                       padding: const EdgeInsets.all(8),
-                      backgroundColor: const Color(0xFF007BFF),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       child: const Icon(Icons.calendar_month, color: Colors.white, size: 28),
                     ),
                   ),
@@ -455,8 +455,8 @@ class _HabitsPageState extends State<HabitsPage> {
                           FractionallySizedBox(
                             widthFactor: _completionPercentage / 100,
                             child: Container(
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF007BFF),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ),
@@ -592,7 +592,7 @@ class _HabitsPageState extends State<HabitsPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF007BFF) : (isCompletedAll ? const Color(0xFF86EFAC) : (isToday ? const Color(0xFFFFB5D8) : Colors.white)),
+        color: isSelected ? Theme.of(context).colorScheme.primary : (isCompletedAll ? const Color(0xFF86EFAC) : (isToday ? const Color(0xFFFFB5D8) : Colors.white)),
         border: Border.all(color: darkColor, width: 2),
       ),
       child: Center(

@@ -1,21 +1,55 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 
 import 'tasks_page.dart';
 import 'habits_page.dart';
 import 'profile_page.dart';
+import 'trophy_room_page.dart';
 import 'widgets.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'repositories/task_repository.dart';
+import 'repositories/habit_repository.dart';
+import 'viewmodels/task_viewmodel.dart';
+import 'viewmodels/habit_viewmodel.dart';
+import 'services/notification_service.dart';
+import 'providers/theme_provider.dart';
+import 'services/backup_service.dart';
 
-void main() {
-  runApp(const MuslimDailyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  final notificationService = NotificationService();
+  await notificationService.init();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => TaskViewModel(
+            repository: TaskRepository(),
+            notificationService: notificationService,
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => HabitViewModel(repository: HabitRepository()),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ThemeProvider(),
+        ),
+        Provider(
+          create: (_) => BackupService(),
+        ),
+      ],
+      child: const MuslimDailyApp(),
+    ),
+  );
 }
 
 class MuslimDailyApp extends StatelessWidget {
@@ -23,13 +57,19 @@ class MuslimDailyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'DayPath',
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFDCF6E3), // Light green tint
+        scaffoldBackgroundColor: const Color(0xFFDCF6E3),
         textTheme: GoogleFonts.epilogueTextTheme(),
         primaryColor: const Color(0xFF1A1F2B),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: themeProvider.accentColor,
+          primary: themeProvider.accentColor,
+        ),
       ),
       home: const MainPage(),
     );
@@ -60,6 +100,11 @@ class _MainPageState extends State<MainPage> {
       HabitsPage(onNavigateToTab: _onNavTapped),
       ProfilePage(onNavigateToTab: _onNavTapped, profileKey: _profileKey, key: _profileKey),
     ];
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TaskViewModel>().loadTasks();
+      context.read<HabitViewModel>().loadHabits();
+    });
   }
 
   @override
@@ -70,7 +115,7 @@ class _MainPageState extends State<MainPage> {
 
   void _onNavTapped(int index) {
     if (index == _currentIndex) return;
-    if (index == 3) {
+    if (index == 4) {
       _profileKey.currentState?.refreshData();
     }
     _isProgrammaticChange = true;
@@ -86,7 +131,7 @@ class _MainPageState extends State<MainPage> {
 
   void _onPageChanged(int index) {
     if (_isProgrammaticChange) return;
-    if (index == 3) {
+    if (index == 4) {
       _profileKey.currentState?.refreshData();
     }
     setState(() {
@@ -103,7 +148,6 @@ class _MainPageState extends State<MainPage> {
         onPageChanged: _onPageChanged,
         children: _pages,
       ),
-
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
         onTap: _onNavTapped,
@@ -127,7 +171,7 @@ class _HomeViewState extends State<_HomeView> {
   String _locationName = 'Searching location...';
   bool _isLoading = false;
   String? _errorMessage;
-  Map<String, bool> _mutedPrayers = {};
+  final Map<String, bool> _mutedPrayers = {};
 
   Timer? _timer;
 
@@ -201,12 +245,10 @@ class _HomeViewState extends State<_HomeView> {
 
   void _handleFetchError(String message) {
     if (_prayerTimes == null) {
-      // Only show error message if we don't have any data yet
       setState(() {
         _errorMessage = message;
       });
     } else {
-      // Just show a snackbar if we already have data (background refresh failed)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
@@ -214,7 +256,6 @@ class _HomeViewState extends State<_HomeView> {
       }
     }
     
-    // Fallback if main location fails or has error, but only if it's not a generic error we already handled manually
     if (_prayerTimes == null) {
       _fetchPrayerTimesByCity('Jakarta');
     }
@@ -243,7 +284,7 @@ class _HomeViewState extends State<_HomeView> {
               "Isha": timings["Isha"],
             };
             _isLoading = false;
-            _errorMessage = null; // Clear error if fallback succeeds
+            _errorMessage = null;
           });
           _updateCountdown(null);
         }
@@ -314,7 +355,7 @@ class _HomeViewState extends State<_HomeView> {
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: const Color(0xFF007BFF)),
+                style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
                 child: const Text('Lanjutkan'),
               ),
             ],
@@ -355,7 +396,12 @@ class _HomeViewState extends State<_HomeView> {
       return Future.error('Location permissions are permanently denied, we cannot request permissions.');
     }
 
-    return await Geolocator.getCurrentPosition();
+    Position? position = await Geolocator.getLastKnownPosition();
+    if (position != null) return position;
+    
+    return await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.low,
+    );
   }
 
   Future<void> _getAddressFromLatLong(Position position) async {
@@ -463,62 +509,74 @@ class _HomeViewState extends State<_HomeView> {
           top: false,
           child: Container(
             padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-          border: Border(
-            top: BorderSide(color: Color(0xFF1A1F2B), width: 3.5),
-            left: BorderSide(color: Color(0xFF1A1F2B), width: 3.5),
-            right: BorderSide(color: Color(0xFF1A1F2B), width: 3.5),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+              border: Border(
+                top: BorderSide(color: Color(0xFF1A1F2B), width: 3.5),
+                left: BorderSide(color: Color(0xFF1A1F2B), width: 3.5),
+                right: BorderSide(color: Color(0xFF1A1F2B), width: 3.5),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.home, color: Color(0xFF1A1F2B)),
+                  title: Text('HOME', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    widget.onNavigateToTab?.call(0);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.task_alt, color: Color(0xFF1A1F2B)),
+                  title: Text('TASKS', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    widget.onNavigateToTab?.call(1);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.favorite_border, color: Color(0xFF1A1F2B)),
+                  title: Text('HABITS', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    widget.onNavigateToTab?.call(2);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.emoji_events_outlined, color: Color(0xFF1A1F2B)),
+                  title: Text('TROPHIES', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const TrophyRoomPage()),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.person_outline, color: Color(0xFF1A1F2B)),
+                  title: Text('PROFILE', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    widget.onNavigateToTab?.call(3);
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.home, color: Color(0xFF1A1F2B)),
-              title: Text('HOME', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
-              onTap: () {
-                Navigator.pop(context);
-                widget.onNavigateToTab?.call(0);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.task_alt, color: Color(0xFF1A1F2B)),
-              title: Text('TASKS', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
-              onTap: () {
-                Navigator.pop(context);
-                widget.onNavigateToTab?.call(1);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.favorite_border, color: Color(0xFF1A1F2B)),
-              title: Text('HABITS', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
-              onTap: () {
-                Navigator.pop(context);
-                widget.onNavigateToTab?.call(2);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_outline, color: Color(0xFF1A1F2B)),
-              title: Text('PROFILE', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800)),
-              onTap: () {
-                Navigator.pop(context);
-                widget.onNavigateToTab?.call(3);
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
       ),
-    ),
-  ),
-);
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     const darkColor = Color(0xFF1A1F2B);
+    final accentColor = Theme.of(context).colorScheme.primary;
     
     return SafeArea(
       child: SingleChildScrollView(
@@ -607,7 +665,7 @@ class _HomeViewState extends State<_HomeView> {
                             'icon/main_icon/Location.webp',
                             width: 24, 
                             height: 24,
-                            errorBuilder: (_, _, _) => const Icon(Icons.location_on_outlined, color: Color(0xFF007BFF), size: 24),
+                            errorBuilder: (_, _, _) => Icon(Icons.location_on_outlined, color: accentColor, size: 24),
                           ),
                           const SizedBox(width: 8),
                           Expanded(child: Text(
@@ -631,11 +689,11 @@ class _HomeViewState extends State<_HomeView> {
                               SnackBar(
                                 content: Text('Reminder set for $_nextPrayerName!'),
                                 behavior: SnackBarBehavior.floating,
-                                backgroundColor: const Color(0xFF007BFF),
+                                backgroundColor: accentColor,
                               ),
                             );
                           },
-                          color: const Color(0xFF007BFF),
+                          color: accentColor,
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           borderRadius: 12,
                           child: const Center(
@@ -659,13 +717,13 @@ class _HomeViewState extends State<_HomeView> {
                   right: 0,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF007BFF),
-                      border: Border(
+                    decoration: BoxDecoration(
+                      color: accentColor,
+                      border: const Border(
                         bottom: BorderSide(color: darkColor, width: 3.5),
                         left: BorderSide(color: darkColor, width: 3.5),
                       ),
-                      borderRadius: BorderRadius.only(
+                      borderRadius: const BorderRadius.only(
                         topRight: Radius.circular(12),
                         bottomLeft: Radius.circular(12),
                       ),
@@ -696,9 +754,9 @@ class _HomeViewState extends State<_HomeView> {
             const SizedBox(height: 16),
 
             if (_isLoading && _prayerTimes == null)
-              const Padding(
-                padding: EdgeInsets.all(40),
-                child: Center(child: CircularProgressIndicator(color: Color(0xFF007BFF))),
+              Padding(
+                padding: const EdgeInsets.all(40),
+                child: Center(child: CircularProgressIndicator(color: accentColor)),
               )
             else if (_errorMessage != null && _prayerTimes == null)
               Padding(
@@ -719,7 +777,7 @@ class _HomeViewState extends State<_HomeView> {
                     const SizedBox(height: 24),
                     NeuButton(
                       onTap: _fetchPrayerTimes,
-                      color: const Color(0xFF007BFF),
+                      color: accentColor,
                       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                       child: const Text(
                         'RETRY', 
@@ -731,7 +789,7 @@ class _HomeViewState extends State<_HomeView> {
               )
             else
               Column(
-children: [
+                children: [
                   ScheduleItem(
                     title: 'Fajr',
                     time: _getTime12Hour(_prayerTimes!['Fajr']!),
@@ -776,7 +834,7 @@ children: [
                   ScheduleItem(
                     title: 'Isha',
                     time: _getTime12Hour(_prayerTimes!['Isha']!),
-                    iconAsset: 'icon/main_icon/Maghrib.webp', // Fallback icon since Isha.webp was not provided
+                    iconAsset: 'icon/main_icon/Maghrib.webp', 
                     iconBgColor: const Color(0xFF1A1F2B),
                     isActive: _nextPrayerName == 'Isha',
                     isMuted: _mutedPrayers['Isha'] ?? false,
@@ -784,48 +842,10 @@ children: [
                     iconColor: Colors.white,
                   ),
                 ],
-
               ),
-
-
-
-            
-            const SizedBox(height: 100), // padding for bottom nav
+            const SizedBox(height: 100), 
           ],
         ),
-      ),
-    );
-  }
-}
-
-// --- REUSABLE COMPONENTS ---
-
-
-class NeuButton extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final Color color;
-  final VoidCallback onTap;
-  final double borderRadius;
-
-  const NeuButton({
-    super.key,
-    required this.child,
-    required this.onTap,
-    this.padding = const EdgeInsets.all(12),
-    this.color = Colors.white,
-    this.borderRadius = 8.0,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: NeuBox(
-        padding: padding,
-        backgroundColor: color,
-        borderRadius: borderRadius,
-        child: child,
       ),
     );
   }
@@ -852,7 +872,6 @@ class ScheduleItem extends StatelessWidget {
     this.iconColor,
     this.onNotificationTap,
   });
-
 
   @override
   Widget build(BuildContext context) {
@@ -884,7 +903,7 @@ class ScheduleItem extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: darkColor,
@@ -934,6 +953,8 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
 
   @override
   Widget build(BuildContext context) {
+    final accentColor = Theme.of(context).colorScheme.primary;
+    
     return SafeArea(
       child: Container(
         height: 84,
@@ -946,7 +967,6 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
 
               return Stack(
                 children: [
-                  // SLIDING PILL INDICATOR
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 400),
                     curve: Curves.fastOutSlowIn,
@@ -963,7 +983,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
                           width: tabWidth - 12,
                           height: double.infinity,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF007BFF),
+                            color: accentColor,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: const Color(0xFF1A1F2B), width: 2.5),
                             boxShadow: [
@@ -979,15 +999,14 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
                     ),
                   ),
 
-                  // TAB ITEMS
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(child: _buildNavItem(0, 'HOME', 'icon/main_icon/Home_navbar.webp')),
-                      Expanded(child: _buildNavItem(1, 'TASKS', 'icon/main_icon/Task_navbar.webp')),
-                      Expanded(child: _buildNavItem(2, 'HABITS', 'icon/main_icon/Habits_navbar.webp')),
-                      Expanded(child: _buildNavItem(3, 'PROFILE', 'icon/main_icon/Profile_navbar.webp')),
+                      Expanded(child: _buildNavItem(0, 'HOME', 'icon/main_icon/Home_navbar.webp', Icons.home_filled)),
+                      Expanded(child: _buildNavItem(1, 'TASKS', 'icon/main_icon/Task_navbar.webp', Icons.task_alt)),
+                      Expanded(child: _buildNavItem(2, 'HABITS', 'icon/main_icon/Habits_navbar.webp', Icons.favorite)),
+                      Expanded(child: _buildNavItem(3, 'PROFILE', 'icon/main_icon/Profile_navbar.webp', Icons.person)),
                     ],
                   ),
                 ],
@@ -999,7 +1018,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
     );
   }
 
-  Widget _buildNavItem(int index, String label, String iconAsset) {
+  Widget _buildNavItem(int index, String label, String iconAsset, IconData fallbackIcon) {
     final isActive = widget.currentIndex == index;
     final isPressed = _pressedIndex == index;
     final contentColor = isActive ? Colors.white : Colors.grey[500]!;
@@ -1033,7 +1052,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
                   width: isActive ? 24 : 22,
                   height: isActive ? 24 : 22,
                   color: contentColor,
-                  errorBuilder: (_, _, _) => Icon(Icons.circle, size: isActive ? 24 : 22, color: contentColor),
+                  errorBuilder: (_, _, _) => Icon(fallbackIcon, size: isActive ? 24 : 22, color: contentColor),
                 ),
               ),
               const SizedBox(height: 4),
@@ -1050,6 +1069,36 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class NeuButton extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final Color color;
+  final VoidCallback onTap;
+  final double borderRadius;
+
+  const NeuButton({
+    super.key,
+    required this.child,
+    required this.onTap,
+    this.padding = const EdgeInsets.all(12),
+    this.color = Colors.white,
+    this.borderRadius = 8.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: NeuBox(
+        padding: padding,
+        backgroundColor: color,
+        borderRadius: borderRadius,
+        child: child,
       ),
     );
   }

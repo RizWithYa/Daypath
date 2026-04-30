@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
@@ -55,7 +56,7 @@ class _TasksPageState extends State<TasksPage> {
             id: '3',
             title: 'Pick up groceries',
             subtitle: 'PERSONAL',
-            leftDeco: const Color(0xFF007BFF),
+            leftDeco: Theme.of(context).colorScheme.primary,
             category: TaskCategory.personal,
           ),
           TodoTask(
@@ -307,7 +308,7 @@ class _TasksPageState extends State<TasksPage> {
                           onSelected: (selected) {
                             if (selected) setDialogState(() => category = TaskCategory.work);
                           },
-                          selectedColor: const Color(0xFF007BFF),
+                          selectedColor: Theme.of(context).colorScheme.primary,
                           labelStyle: GoogleFonts.epilogue(
                             fontWeight: FontWeight.bold,
                             color: category == TaskCategory.work ? Colors.white : darkColor,
@@ -324,7 +325,7 @@ class _TasksPageState extends State<TasksPage> {
                           onSelected: (selected) {
                             if (selected) setDialogState(() => category = TaskCategory.personal);
                           },
-                          selectedColor: const Color(0xFF007BFF),
+                          selectedColor: Theme.of(context).colorScheme.primary,
                           labelStyle: GoogleFonts.epilogue(
                             fontWeight: FontWeight.bold,
                             color: category == TaskCategory.personal ? Colors.white : darkColor,
@@ -404,152 +405,265 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
-  void _showTaskDetails(TodoTask task) {
-    const darkColor = Color(0xFF1A1F2B);
-    showModalBottomSheet(
+  void _editTask(TodoTask task) {
+    String title = task.title;
+    String subtitle = task.subtitle;
+    String description = task.description;
+    DateTime? dueDate = task.dueDate;
+    TaskCategory category = task.category;
+    bool isUrgent = task.isUrgent;
+
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: SafeArea(
-            top: false,
-            child: Container(
-              padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-            ),
-            border: Border(
-              top: BorderSide(color: darkColor, width: 4),
-              left: BorderSide(color: darkColor, width: 4),
-              right: BorderSide(color: darkColor, width: 4),
-            ),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            const darkColor = Color(0xFF1A1F2B);
+            return Dialog(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              insetPadding: const EdgeInsets.all(24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0),
+                side: const BorderSide(color: darkColor, width: 3.5),
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CategoryBadge(
-                      text: task.category.name.toUpperCase(),
-                      color: task.category == TaskCategory.work ? const Color(0xFF00FF7F) : const Color(0xFFFF649C),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF007BFF),
+                            border: Border.all(color: darkColor, width: 2),
+                          ),
+                          child: Text(
+                            'EDIT TASK',
+                            style: GoogleFonts.epilogue(
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              fontSize: 12,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            task.title.replaceAll("\n", " "),
+                            style: GoogleFonts.epilogue(
+                              fontWeight: FontWeight.w900,
+                              color: darkColor,
+                              fontSize: 16,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    if (task.isUrgent)
-                      const CategoryBadge(text: 'URGENT', color: Color(0xFFFFBA24)),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, color: darkColor, size: 28),
+                    const SizedBox(height: 24),
+                    Text('TITLE', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      initialValue: task.title,
+                      onChanged: (value) => title = value,
+                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w600),
+                      decoration: const InputDecoration(
+                        filled: true,
+                        fillColor: Color(0xFFF3F4F6),
+                        border: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 3)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('SUBTITLE', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      initialValue: task.subtitle,
+                      onChanged: (value) => subtitle = value,
+                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w600),
+                      decoration: const InputDecoration(
+                        filled: true,
+                        fillColor: Color(0xFFF3F4F6),
+                        border: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 3)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('DESCRIPTION', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      initialValue: task.description,
+                      onChanged: (value) => description = value,
+                      maxLines: 3,
+                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w500),
+                      decoration: const InputDecoration(
+                        filled: true,
+                        fillColor: Color(0xFFF3F4F6),
+                        border: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 2.5)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: darkColor, width: 3)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('DUE DATE', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: dueDate ?? DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.light(
+                                  primary: darkColor,
+                                  onPrimary: Colors.white,
+                                  onSurface: darkColor,
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setDialogState(() => dueDate = picked);
+                        }
+                      },
+                      child: NeuBox(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        backgroundColor: const Color(0xFFF3F4F6),
+                        borderRadius: 0,
+                        borderWidth: 2.5,
+                        offset: const Offset(3, 3),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              dueDate == null ? 'SELECT DATE' : DateFormat('MMM dd, yyyy').format(dueDate!),
+                              style: GoogleFonts.epilogue(fontWeight: FontWeight.w700, color: darkColor),
+                            ),
+                            const Icon(Icons.calendar_today, size: 18, color: darkColor),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('CATEGORY', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        ChoiceChip(
+                          label: const Text('WORK'),
+                          selected: category == TaskCategory.work,
+                          onSelected: (selected) {
+                            if (selected) setDialogState(() => category = TaskCategory.work);
+                          },
+                          selectedColor: Theme.of(context).colorScheme.primary,
+                          labelStyle: GoogleFonts.epilogue(
+                            fontWeight: FontWeight.bold,
+                            color: category == TaskCategory.work ? Colors.white : darkColor,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0),
+                            side: const BorderSide(color: darkColor, width: 2),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('PERSONAL'),
+                          selected: category == TaskCategory.personal,
+                          onSelected: (selected) {
+                            if (selected) setDialogState(() => category = TaskCategory.personal);
+                          },
+                          selectedColor: Theme.of(context).colorScheme.primary,
+                          labelStyle: GoogleFonts.epilogue(
+                            fontWeight: FontWeight.bold,
+                            color: category == TaskCategory.personal ? Colors.white : darkColor,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0),
+                            side: const BorderSide(color: darkColor, width: 2),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: Checkbox(
+                            value: isUrgent,
+                            onChanged: (value) => setDialogState(() => isUrgent = value ?? false),
+                            activeColor: const Color(0xFFFF649C),
+                            side: const BorderSide(color: darkColor, width: 2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text('MARK AS URGENT', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, fontSize: 12, color: darkColor)),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text('CANCEL', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
+                        ),
+                        const SizedBox(width: 16),
+                        NeuBox(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          backgroundColor: const Color(0xFF007BFF),
+                          borderRadius: 0,
+                          borderWidth: 3,
+                          offset: const Offset(4, 4),
+                          child: InkWell(
+                            onTap: () {
+                              if (title.isNotEmpty) {
+                                setState(() {
+                                  final index = _tasks.indexWhere((t) => t.id == task.id);
+                                  if (index != -1) {
+                                    _tasks[index] = _tasks[index].copyWith(
+                                      title: title,
+                                      subtitle: subtitle.isNotEmpty
+                                          ? subtitle
+                                          : (dueDate != null ? DateFormat('MMM dd, yyyy').format(dueDate!) : 'NO DUE DATE'),
+                                      description: description,
+                                      dueDate: dueDate,
+                                      isUrgent: isUrgent,
+                                      category: category,
+                                    );
+                                  }
+                                });
+                                _saveTasks();
+                                Navigator.pop(context);
+                              }
+                            },
+                            child: Text('SAVE CHANGES', style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, color: Colors.white)),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  task.title.replaceAll('\n', '\n'),
-                  style: GoogleFonts.epilogue(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: darkColor,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  task.subtitle,
-                  style: GoogleFonts.epilogue(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF6C757D),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                if (task.dueDate != null) ...[
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today, size: 20, color: darkColor),
-                      const SizedBox(width: 8),
-                      Text(
-                        'DUE: ${DateFormat('EEEE, MMM dd, yyyy').format(task.dueDate!)}',
-                        style: GoogleFonts.epilogue(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: darkColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                Text(
-                  'DESCRIPTION',
-                  style: GoogleFonts.epilogue(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    color: darkColor,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    border: Border.all(color: darkColor, width: 2),
-                  ),
-                  child: Text(
-                    task.description.isEmpty ? 'No description provided.' : task.description,
-                    style: GoogleFonts.epilogue(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: darkColor,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  child: NeuBox(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: task.isDone ? const Color(0xFFD1D5DB) : const Color(0xFF007BFF),
-                    borderRadius: 0,
-                    borderWidth: 3,
-                    offset: const Offset(4, 4),
-                    child: InkWell(
-                      onTap: () {
-                        _toggleTaskStatus(task.id);
-                        Navigator.pop(context);
-                      },
-                      child: Center(
-                        child: Text(
-                          task.isDone ? 'MARK AS PENDING' : 'MARK AS COMPLETE',
-                          style: GoogleFonts.epilogue(
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-            ),
-          ),
-        ),
-      );
-    },
-  );
+              ),
+            );
+          },
+        );
+      },
+    );
   }
   @override
   Widget build(BuildContext context) {
@@ -602,8 +716,8 @@ class _TasksPageState extends State<TasksPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        decoration: const BoxDecoration(
-                          border: Border(bottom: BorderSide(color: Color(0xFF007BFF), width: 4)),
+                        decoration: BoxDecoration(
+                          border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.primary, width: 4)),
                         ),
                         child: Text(
                           'MY TASKS',
@@ -647,7 +761,7 @@ class _TasksPageState extends State<TasksPage> {
                       child: _TabItem(
                         title: 'ALL (${_tasks.length})',
                         isActive: _selectedTab == 0,
-                        color: const Color(0xFF007BFF),
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),
@@ -734,10 +848,55 @@ class _TasksPageState extends State<TasksPage> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: LongPressDraggable<TodoTask>(
                   data: task,
+                  onDragStarted: () {
+                    HapticFeedback.mediumImpact();
+                  },
                   feedback: Material(
                     color: Colors.transparent,
-                    child: SizedBox(
-                      width: MediaQuery.of(context).size.width - 40,
+                    child: Transform.rotate(
+                      angle: 0.03,
+                      child: Transform.scale(
+                        scale: 1.04,
+                        child: SizedBox(
+                          width: MediaQuery.of(context).size.width - 40,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF007BFF).withOpacity(0.4),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: _TaskItem(
+                              title: task.title,
+                              subtitle: task.subtitle,
+                              dueDate: task.dueDate,
+                              iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : Colors.white,
+                              onToggle: () {},
+                              onTap: () {},
+                              onDelete: () {},
+                              isCheckbox: true,
+                              checked: task.isDone,
+                              isDone: task.isDone,
+                              leftDeco: const Color(0xFF007BFF),
+                              iconIcon: task.isUrgent ? Icons.priority_high : null,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  childWhenDragging: Opacity(
+                    opacity: 0.35,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: const Color(0xFF007BFF),
+                          width: 2,
+                        ),
+                      ),
                       child: _TaskItem(
                         title: task.title,
                         subtitle: task.subtitle,
@@ -749,26 +908,9 @@ class _TasksPageState extends State<TasksPage> {
                         isCheckbox: true,
                         checked: task.isDone,
                         isDone: task.isDone,
-                        leftDeco: const Color(0xFF007BFF),
+                        leftDeco: Theme.of(context).colorScheme.primary,
                         iconIcon: task.isUrgent ? Icons.priority_high : null,
                       ),
-                    ),
-                  ),
-                  childWhenDragging: Opacity(
-                    opacity: 0.5,
-                    child: _TaskItem(
-                      title: task.title,
-                      subtitle: task.subtitle,
-                      dueDate: task.dueDate,
-                      iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : Colors.white,
-                      onToggle: () {},
-                      onTap: () {},
-                      onDelete: () {},
-                      isCheckbox: true,
-                      checked: task.isDone,
-                      isDone: task.isDone,
-                      leftDeco: const Color(0xFF007BFF),
-                      iconIcon: task.isUrgent ? Icons.priority_high : null,
                     ),
                   ),
                   child: DragTarget<TodoTask>(
@@ -801,12 +943,12 @@ class _TasksPageState extends State<TasksPage> {
                         dueDate: task.dueDate,
                         iconBgColor: task.isUrgent ? const Color(0xFFFFBA24) : (isDoneSection ? const Color(0xFF69B4FF) : Colors.white),
                         onToggle: () => _toggleTaskStatus(task.id),
-                        onTap: () => _showTaskDetails(task),
+                        onTap: () => _editTask(task),
                         onDelete: () => _deleteTask(task.id),
                         isCheckbox: true,
                         checked: task.isDone,
                         isDone: task.isDone,
-                        leftDeco: const Color(0xFF007BFF),
+                        leftDeco: Theme.of(context).colorScheme.primary,
                         iconIcon: task.isUrgent ? Icons.priority_high : (isDoneSection ? Icons.check : null),
                       );
                     },

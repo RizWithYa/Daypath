@@ -7,7 +7,12 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo_application_v1/models.dart';
 import 'widgets.dart';
-
+import 'package:provider/provider.dart';
+import 'providers/theme_provider.dart';
+import 'services/backup_service.dart';
+import 'viewmodels/task_viewmodel.dart';
+import 'viewmodels/habit_viewmodel.dart';
+import 'trophy_room_page.dart';
   class ProfilePage extends StatefulWidget {
   final void Function(int)? onNavigateToTab;
   final GlobalKey<ProfilePageState>? profileKey;
@@ -95,75 +100,216 @@ class ProfilePageState extends State<ProfilePage> {
             top: false,
             child: Container(
               padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-            border: Border(
-              top: BorderSide(color: darkColor, width: 3),
-              left: BorderSide(color: darkColor, width: 3),
-              right: BorderSide(color: darkColor, width: 3),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'SETTINGS',
-                style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, fontSize: 20, color: darkColor),
-              ),
-              const SizedBox(height: 24),
-              GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                  _showResetConfirmation();
-                },
-                child: NeuBox(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  backgroundColor: const Color(0xFFFF649C),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.refresh, color: darkColor),
-                      const SizedBox(width: 12),
-                      Text(
-                        'RESET PROFILE',
-                        style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor),
-                      ),
-                    ],
-                  ),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+                border: Border(
+                  top: BorderSide(color: darkColor, width: 3),
+                  left: BorderSide(color: darkColor, width: 3),
+                  right: BorderSide(color: darkColor, width: 3),
                 ),
               ),
-              const SizedBox(height: 16),
-              NeuBox(
-                padding: const EdgeInsets.all(16),
-                backgroundColor: const Color(0xFFE8EDFF),
+              child: SingleChildScrollView(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'ABOUT',
+                      'SETTINGS',
+                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, fontSize: 20, color: darkColor),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'APP ACCENT COLOR',
                       style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, fontSize: 14, color: darkColor),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'App Name: Todo Neubrutalism',
-                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w600, fontSize: 12, color: darkColor),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildColorOption(const Color(0xFF007BFF)),
+                        _buildColorOption(const Color(0xFFFFBA24)),
+                        _buildColorOption(const Color(0xFFFF649C)),
+                        _buildColorOption(const Color(0xFF86EFAC)),
+                        _buildColorOption(const Color(0xFF9333EA)),
+                      ],
                     ),
-                    Text(
-                      'Version: 1.0.0',
-                      style: GoogleFonts.epilogue(fontWeight: FontWeight.w600, fontSize: 12, color: darkColor),
+                    const SizedBox(height: 24),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TrophyRoomPage()),
+                        );
+                      },
+                      child: NeuBox(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        backgroundColor: const Color(0xFFE8EDFF),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.emoji_events_outlined, color: darkColor),
+                            const SizedBox(width: 12),
+                            Text(
+                              'TROPHY ROOM',
+                              style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final backupService = context.read<BackupService>();
+                        try {
+                          await backupService.exportBackup();
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Failed to export data')),
+                            );
+                          }
+                        }
+                      },
+                      child: NeuBox(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        backgroundColor: const Color(0xFF86EFAC),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.download, color: darkColor),
+                            const SizedBox(width: 12),
+                            Text(
+                              'BACKUP DATA',
+                              style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final backupService = context.read<BackupService>();
+                        final success = await backupService.importBackup();
+                        if (context.mounted) {
+                          if (success) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Data restored successfully! Please restart the app for full effect.')),
+                            );
+                            _loadProfileData();
+                            context.read<TaskViewModel>().loadTasks();
+                            context.read<HabitViewModel>().loadHabits();
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Failed to restore data')),
+                            );
+                          }
+                        }
+                      },
+                      child: NeuBox(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        backgroundColor: const Color(0xFFFFBA24),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.upload, color: darkColor),
+                            const SizedBox(width: 12),
+                            Text(
+                              'RESTORE DATA',
+                              style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showResetConfirmation();
+                      },
+                      child: NeuBox(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        backgroundColor: const Color(0xFFFF649C),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.refresh, color: darkColor),
+                            const SizedBox(width: 12),
+                            Text(
+                              'RESET PROFILE',
+                              style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    NeuBox(
+                      padding: const EdgeInsets.all(16),
+                      backgroundColor: const Color(0xFFE8EDFF),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ABOUT',
+                            style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, fontSize: 14, color: darkColor),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'App Name: Todo Neubrutalism',
+                            style: GoogleFonts.epilogue(fontWeight: FontWeight.w600, fontSize: 12, color: darkColor),
+                          ),
+                          Text(
+                            'Version: 1.0.0',
+                            style: GoogleFonts.epilogue(fontWeight: FontWeight.w600, fontSize: 12, color: darkColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildColorOption(Color color) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isSelected = themeProvider.accentColor.value == color.value;
+    const darkColor = Color(0xFF1A1F2B);
+
+    return GestureDetector(
+      onTap: () {
+        themeProvider.setAccentColor(color);
+        Navigator.pop(context);
+      },
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: darkColor,
+            width: isSelected ? 4 : 2,
+          ),
+          boxShadow: isSelected
+              ? [
+                  const BoxShadow(
+                    color: darkColor,
+                    offset: Offset(2, 2),
+                  )
+                ]
+              : null,
         ),
       ),
     );
-  },
-);
   }
 
   void _showResetConfirmation() {
@@ -269,7 +415,7 @@ class ProfilePageState extends State<ProfilePage> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF007BFF), width: 2),
+                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
               ),
             ),
           ),
@@ -280,7 +426,7 @@ class ProfilePageState extends State<ProfilePage> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF007BFF),
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
               ),
               onPressed: () {
@@ -355,7 +501,7 @@ class ProfilePageState extends State<ProfilePage> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(color: const Color(0xFF007BFF), shape: BoxShape.circle, border: Border.all(color: const Color(0xFF1A1F2B), width: 3)),
+                          decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, shape: BoxShape.circle, border: Border.all(color: const Color(0xFF1A1F2B), width: 3)),
                           child: const Icon(Icons.photo_library, size: 32, color: Color(0xFF1A1F2B)),
                         ),
                         const SizedBox(height: 8),
@@ -528,20 +674,35 @@ class ProfilePageState extends State<ProfilePage> {
                 ],
               ),
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6DE89D), // Green badge
-                  border: Border.all(color: darkColor, width: 2),
-                ),
-                child: Text(
-                  _unlockedAchievementIds.isEmpty 
-                    ? 'Productivity Master' 
-                    : Achievement.defaultAchievements.firstWhere((a) => a.id == _unlockedAchievementIds.last).title,
-                  style: GoogleFonts.epilogue(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: darkColor,
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const TrophyRoomPage()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6DE89D), // Green badge
+                    border: Border.all(color: darkColor, width: 2),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.emoji_events_outlined, size: 16, color: darkColor),
+                      const SizedBox(width: 8),
+                      Text(
+                        _unlockedAchievementIds.isEmpty 
+                          ? 'Productivity Master' 
+                          : Achievement.defaultAchievements.firstWhere((a) => a.id == _unlockedAchievementIds.last).title,
+                        style: GoogleFonts.epilogue(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: darkColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -703,17 +864,103 @@ class ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 32),
 
-              // ACHIEVEMENTS
-              _buildAchievementCategory(
-                title: 'ACHIEVEMENTS EARNED',
-                achievements: Achievement.defaultAchievements.where((a) => _unlockedAchievementIds.contains(a.id)).toList(),
-                isUnlocked: true,
+              // DAILY MOTIVATION
+              NeuBox(
+                padding: const EdgeInsets.all(20),
+                backgroundColor: const Color(0xFFFFBA24), // Yellow
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.format_quote_rounded, size: 32, color: darkColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'DAILY MOTIVATION',
+                          style: GoogleFonts.epilogue(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: darkColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '"It does not matter how slowly you go as long as you do not stop."',
+                      style: GoogleFonts.epilogue(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: darkColor,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '— Confucius',
+                        style: GoogleFonts.epilogue(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: darkColor.withOpacity(0.8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // ACCOUNT ACTIONS
+              Text(
+                'ACCOUNT OPTIONS',
+                style: GoogleFonts.epilogue(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF6C757D),
+                ),
               ),
               const SizedBox(height: 16),
-              _buildAchievementCategory(
-                title: 'YET TO UNLOCK',
-                achievements: Achievement.defaultAchievements.where((a) => !_unlockedAchievementIds.contains(a.id)).toList(),
-                isUnlocked: false,
+              NeuBox(
+                padding: EdgeInsets.zero,
+                backgroundColor: Colors.white,
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.emoji_events_outlined, color: darkColor),
+                      title: Text('Trophy Room', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
+                      trailing: const Icon(Icons.chevron_right, color: darkColor),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TrophyRoomPage()),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1, color: darkColor, thickness: 2),
+                    ListTile(
+                      leading: const Icon(Icons.privacy_tip_outlined, color: darkColor),
+                      title: Text('Privacy Policy', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
+                      trailing: const Icon(Icons.chevron_right, color: darkColor),
+                      onTap: () {},
+                    ),
+                    const Divider(height: 1, color: darkColor, thickness: 2),
+                    ListTile(
+                      leading: const Icon(Icons.help_outline, color: darkColor),
+                      title: Text('Help & Support', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
+                      trailing: const Icon(Icons.chevron_right, color: darkColor),
+                      onTap: () {},
+                    ),
+                    const Divider(height: 1, color: darkColor, thickness: 2),
+                    ListTile(
+                      leading: const Icon(Icons.info_outline, color: darkColor),
+                      title: Text('About Daypath', style: GoogleFonts.epilogue(fontWeight: FontWeight.w800, color: darkColor)),
+                      trailing: const Icon(Icons.chevron_right, color: darkColor),
+                      onTap: () {},
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 120), // Padding for nav bar
             ],
@@ -738,100 +985,6 @@ class ProfilePageState extends State<ProfilePage> {
         boxShadow: const [
           BoxShadow(color: darkColor, offset: Offset(2, 2)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildAchievementCategory({
-    required String title,
-    required List<Achievement> achievements,
-    required bool isUnlocked,
-  }) {
-    const darkColor = Color(0xFF1A1F2B);
-    return NeuBox(
-      padding: EdgeInsets.zero,
-      backgroundColor: Colors.white,
-      child: ExpansionTile(
-        title: Text(
-          title,
-          style: GoogleFonts.epilogue(
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-            color: darkColor,
-          ),
-        ),
-        iconColor: darkColor,
-        collapsedIconColor: darkColor,
-        shape: const RoundedRectangleBorder(side: BorderSide.none),
-        collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
-        children: achievements.isEmpty
-            ? [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'NO ACHIEVEMENTS YET',
-                    style: GoogleFonts.epilogue(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey,
-                    ),
-                  ),
-                )
-              ]
-            : achievements.map((a) => _buildAchievementItem(a, isUnlocked)).toList(),
-      ),
-    );
-  }
-
-  Widget _buildAchievementItem(Achievement achievement, bool isUnlocked) {
-    const darkColor = Color(0xFF1A1F2B);
-    const ColorFilter greyscale = ColorFilter.matrix(<double>[
-      0.2126, 0.7152, 0.0722, 0, 0,
-      0.2126, 0.7152, 0.0722, 0, 0,
-      0.2126, 0.7152, 0.0722, 0, 0,
-      0, 0, 0, 1, 0,
-    ]);
-
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: darkColor, width: 2)),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: ColorFiltered(
-          colorFilter: isUnlocked ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply) : greyscale,
-          child: Icon(achievement.icon, color: darkColor, size: 32),
-        ),
-        title: Text(
-          achievement.title.toUpperCase(),
-          style: GoogleFonts.epilogue(
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-            color: darkColor,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            Text(
-              'HOW TO UNLOCK',
-              style: GoogleFonts.epilogue(
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFFFF649C), // Pink accent
-              ),
-            ),
-            Text(
-              achievement.description,
-              style: GoogleFonts.epilogue(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: darkColor.withOpacity(0.7),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
