@@ -695,7 +695,13 @@ class ProfilePageState extends State<ProfilePage> {
                       Text(
                         _unlockedAchievementIds.isEmpty 
                           ? 'Productivity Master' 
-                          : Achievement.defaultAchievements.firstWhere((a) => a.id == _unlockedAchievementIds.last).title,
+                          : (() {
+                              try {
+                                return Achievement.defaultAchievements.firstWhere((a) => a.id == _unlockedAchievementIds.last).title;
+                              } catch (_) {
+                                return 'Productivity Master';
+                              }
+                            })(),
                         style: GoogleFonts.epilogue(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,

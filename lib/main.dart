@@ -115,7 +115,7 @@ class _MainPageState extends State<MainPage> {
 
   void _onNavTapped(int index) {
     if (index == _currentIndex) return;
-    if (index == 4) {
+    if (index == 3) {
       _profileKey.currentState?.refreshData();
     }
     _isProgrammaticChange = true;
@@ -131,7 +131,7 @@ class _MainPageState extends State<MainPage> {
 
   void _onPageChanged(int index) {
     if (_isProgrammaticChange) return;
-    if (index == 4) {
+    if (index == 3) {
       _profileKey.currentState?.refreshData();
     }
     setState(() {
@@ -208,19 +208,27 @@ class _HomeViewState extends State<_HomeView> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final timings = data['data']['timings'];
-        if (mounted) {
-          setState(() {
-            _prayerTimes = {
-              'Fajr': timings['Fajr'],
-              'Dhuhr': timings['Dhuhr'],
-              'Asr': timings['Asr'],
-              'Maghrib': timings['Maghrib'],
-              'Isha': timings['Isha'],
-            };
-            _isLoading = false;
-            _errorMessage = null;
-          });
-          _updateCountdown(null);
+        if (mounted && timings != null) {
+          // Validate that all required keys are present and not null
+          final requiredKeys = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+          bool allKeysPresent = requiredKeys.every((key) => timings[key] != null);
+
+          if (allKeysPresent) {
+            setState(() {
+              _prayerTimes = {
+                'Fajr': timings['Fajr'],
+                'Dhuhr': timings['Dhuhr'],
+                'Asr': timings['Asr'],
+                'Maghrib': timings['Maghrib'],
+                'Isha': timings['Isha'],
+              };
+              _isLoading = false;
+              _errorMessage = null;
+            });
+            _updateCountdown(null);
+          } else {
+            _handleFetchError('Incomplete data received from server.');
+          }
         }
       } else {
         throw HttpException('Server returned ${response.statusCode}');
@@ -273,20 +281,28 @@ class _HomeViewState extends State<_HomeView> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final timings = data["data"]["timings"];
-        if (mounted) {
-          setState(() {
-            _locationName = "$city, Indonesia";
-            _prayerTimes = {
-              "Fajr": timings["Fajr"],
-              "Dhuhr": timings["Dhuhr"],
-              "Asr": timings["Asr"],
-              "Maghrib": timings["Maghrib"],
-              "Isha": timings["Isha"],
-            };
-            _isLoading = false;
-            _errorMessage = null;
-          });
-          _updateCountdown(null);
+        if (mounted && timings != null) {
+          // Validate that all required keys are present and not null
+          final requiredKeys = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+          bool allKeysPresent = requiredKeys.every((key) => timings[key] != null);
+
+          if (allKeysPresent) {
+            setState(() {
+              _locationName = "$city, Indonesia";
+              _prayerTimes = {
+                "Fajr": timings["Fajr"],
+                "Dhuhr": timings["Dhuhr"],
+                "Asr": timings["Asr"],
+                "Maghrib": timings["Maghrib"],
+                "Isha": timings["Isha"],
+              };
+              _isLoading = false;
+              _errorMessage = null;
+            });
+            _updateCountdown(null);
+          } else {
+             setState(() => _errorMessage = 'Failed to load valid prayer times.');
+          }
         }
       } else {
         throw HttpException('Server returned ${response.statusCode}');
@@ -455,9 +471,14 @@ class _HomeViewState extends State<_HomeView> {
     String nextName = '';
 
     for (var entry in _prayerTimes!.entries) {
-      final parts = entry.value.split(':');
-      final hour = int.parse(parts[0]);
-      final minute = int.parse(parts[1]);
+      final timeStr = entry.value;
+      if (timeStr == null) continue;
+      
+      final parts = timeStr.split(':');
+      if (parts.length < 2) continue;
+      
+      final hour = int.tryParse(parts[0]) ?? 0;
+      final minute = int.tryParse(parts[1]) ?? 0;
       
       final prayerTime = DateTime(now.year, now.month, now.day, hour, minute);
       
@@ -469,22 +490,29 @@ class _HomeViewState extends State<_HomeView> {
     }
 
     if (nextTime == null) {
-       final fajrParts = _prayerTimes!['Fajr']!.split(':');
-       nextTime = DateTime(now.year, now.month, now.day + 1, int.parse(fajrParts[0]), int.parse(fajrParts[1]));
-       nextName = 'Fajr';
+       final fajrTime = _prayerTimes!['Fajr'];
+       if (fajrTime != null) {
+         final fajrParts = fajrTime.split(':');
+         if (fajrParts.length >= 2) {
+           nextTime = DateTime(now.year, now.month, now.day + 1, int.tryParse(fajrParts[0]) ?? 0, int.tryParse(fajrParts[1]) ?? 0);
+           nextName = 'Fajr';
+         }
+       }
     }
 
-    final diff = nextTime.difference(now);
-    
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final hours = twoDigits(diff.inHours);
-    final minutes = twoDigits(diff.inMinutes.remainder(60));
-    final seconds = twoDigits(diff.inSeconds.remainder(60));
+    if (nextTime != null) {
+      final diff = nextTime.difference(now);
+      
+      String twoDigits(int n) => n.toString().padLeft(2, '0');
+      final hours = twoDigits(diff.inHours);
+      final minutes = twoDigits(diff.inMinutes.remainder(60));
+      final seconds = twoDigits(diff.inSeconds.remainder(60));
 
-    setState(() {
-      _nextPrayerName = nextName;
-      _countdown = '$hours:$minutes:$seconds';
-    });
+      setState(() {
+        _nextPrayerName = nextName;
+        _countdown = '$hours:$minutes:$seconds';
+      });
+    }
   }
 
   String _getTime12Hour(String time24) {
@@ -792,7 +820,7 @@ class _HomeViewState extends State<_HomeView> {
                 children: [
                   ScheduleItem(
                     title: 'Fajr',
-                    time: _getTime12Hour(_prayerTimes!['Fajr']!),
+                    time: _getTime12Hour(_prayerTimes?['Fajr'] ?? '00:00'),
                     iconAsset: 'icon/main_icon/Fajr.webp',
                     iconBgColor: const Color(0xFFFF649C),
                     isActive: _nextPrayerName == 'Fajr',
@@ -802,7 +830,7 @@ class _HomeViewState extends State<_HomeView> {
                   const SizedBox(height: 12),
                   ScheduleItem(
                     title: 'Dhuhr',
-                    time: _getTime12Hour(_prayerTimes!['Dhuhr']!),
+                    time: _getTime12Hour(_prayerTimes?['Dhuhr'] ?? '00:00'),
                     iconAsset: 'icon/main_icon/Dhuhr.webp',
                     iconBgColor: Colors.white,
                     isActive: _nextPrayerName == 'Dhuhr',
@@ -812,7 +840,7 @@ class _HomeViewState extends State<_HomeView> {
                   const SizedBox(height: 12),
                   ScheduleItem(
                     title: 'Asr',
-                    time: _getTime12Hour(_prayerTimes!['Asr']!),
+                    time: _getTime12Hour(_prayerTimes?['Asr'] ?? '00:00'),
                     iconAsset: 'icon/main_icon/Asr.webp',
                     iconBgColor: const Color(0xFFCCE4FF),
                     isActive: _nextPrayerName == 'Asr',
@@ -822,7 +850,7 @@ class _HomeViewState extends State<_HomeView> {
                   const SizedBox(height: 12),
                   ScheduleItem(
                     title: 'Maghrib',
-                    time: _getTime12Hour(_prayerTimes!['Maghrib']!),
+                    time: _getTime12Hour(_prayerTimes?['Maghrib'] ?? '00:00'),
                     iconAsset: 'icon/main_icon/Maghrib.webp',
                     iconBgColor: darkColor,
                     isActive: _nextPrayerName == 'Maghrib',
@@ -833,7 +861,7 @@ class _HomeViewState extends State<_HomeView> {
                   const SizedBox(height: 12),
                   ScheduleItem(
                     title: 'Isha',
-                    time: _getTime12Hour(_prayerTimes!['Isha']!),
+                    time: _getTime12Hour(_prayerTimes?['Isha'] ?? '00:00'),
                     iconAsset: 'icon/main_icon/Maghrib.webp', 
                     iconBgColor: const Color(0xFF1A1F2B),
                     isActive: _nextPrayerName == 'Isha',
